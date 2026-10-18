@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Gemini Cookie Sync",
+  "version": "1.0.0",
+  "description": "Detects your Gemini web login and sends the session cookies to your self-hosted gemini-web2api instance after you confirm.",
+  "permissions": ["cookies", "storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://gemini.google.com/*",
+    "https://*.google.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Gemini Cookie Sync",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost/*", "http://127.0.0.1/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "128": "icon128.png"
+  }
+}

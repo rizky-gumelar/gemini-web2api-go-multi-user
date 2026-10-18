@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gemini-web2api Admin Panel</title>
+<!-- Chart.js embedded with binary -->
+<script src="chart.umd.min.js"></script>
+<style>
+  :root {
+    --g-blue: #4285F4;
+    --g-purple: #9B72CB;
+    --g-pink: #D96570;
+    --g-sweep: linear-gradient(90deg, #4285F4 0%, #9B72CB 58%, #D96570 100%);
+
+    --bg: #F8FAFD;
+    --card: #FFFFFF;
+    --surface-hi: #EFF3FA;
+    --surface-press: #E2E8F1;
+    --outline: #D5DAE1;
+    --outline-soft: #E8ECF1;
+    --nav-on: #D3E3FD;
+    --nav-on-fg: #0B57D0;
+
+    --text: #1F1F1F;
+    --text-2: #3C4043;
+    --muted: #5F6368;
+    --ok: #146C2E;
+    --ok-bg: #E6F4EA;
+    --fail: #B3261E;
+    --fail-bg: #FCEEEE;
+    --warn: #8F5000;
+    --warn-bg: #FDF0E0;
+
+    --sb-w: 244px;
+    --sb-w-collapsed: 72px;
+    --topbar-h: 60px;
+    --r-card: 16px;
+    --r-pill: 999px;
+    --sans: "Google Sans Text", "Google Sans", "Product Sans", -apple-system,
+            BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: "Roboto Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+    --shadow: 0 1px 2px rgba(60,64,67,.06), 0 1px 3px 1px rgba(60,64,67,.05);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans); background: var(--bg); color: var(--text);
+    font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  #app { display: flex; min-height: 100vh; }
+  ::selection { background: var(--nav-on); }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sb-w); flex: 0 0 var(--sb-w); padding: 10px 12px 14px;
+    display: flex; flex-direction: column;
+    position: sticky; top: 0; height: 100vh;
+    transition: width .2s cubic-bezier(.2,0,0,1), flex-basis .2s cubic-bezier(.2,0,0,1);
+  }
+  .sidebar.collapsed { width: var(--sb-w-collapsed); flex-basis: var(--sb-w-collapsed); }
+  .side-top { display: flex; align-items: center; gap: 6px; height: var(--topbar-h); }
+  .icon-btn {
+    all: unset; cursor: pointer; width: 40px; height: 40px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--r-pill); color: var(--text-2); transition: background .15s;
+  }
+  .icon-btn:hover { background: var(--surface-press); }
+  .icon-btn:focus-visible { outline: 2px solid var(--g-blue); outline-offset: 2px; }
+  .brand-text {
+    display: flex; align-items: center; gap: 9px; font-size: 15px;
+    color: var(--text-2); white-space: nowrap; overflow: hidden;
+  }
+  .spark {
+    width: 20px; height: 20px; flex: none; background: var(--g-sweep);
+    clip-path: polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);
+  }
+  .sidebar.collapsed .brand-text { display: none; }
+
+  .sidebar nav { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+  .sidebar nav button {
+    all: unset; cursor: pointer; display: flex; align-items: center; gap: 14px;
+    padding: 10px 16px; border-radius: var(--r-pill); color: var(--text-2);
+    font-size: 14px; font-family: var(--sans); white-space: nowrap;
+    transition: background .15s;
+  }
+  .sidebar nav button svg { width: 20px; height: 20px; flex: none; fill: currentColor; opacity: .75; }
+  .sidebar nav button:hover { background: var(--surface-press); }
+  .sidebar nav button.active { background: var(--nav-on); color: var(--nav-on-fg); font-weight: 500; }
+  .sidebar nav button.active svg { opacity: 1; }
+  .sidebar nav button:focus-visible { outline: 2px solid var(--g-blue); outline-offset: 2px; }
+  .sidebar.collapsed nav button { justify-content: center; padding: 10px 0; }
+  .sidebar.collapsed .nav-label { display: none; }
+
+  .side-foot { margin-top: auto; padding: 12px 16px 2px; font-size: 12px; color: var(--muted); }
+  .side-foot .sf-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+  .side-foot .sf-row b { color: var(--text-2); font-weight: 500; }
+  .sf-sep { height: 1px; background: var(--outline-soft); margin: 9px 0; }
+  .logout-btn {
+    all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
+    display: flex; align-items: center; gap: 13px; padding: 9px 14px;
+    border-radius: var(--r-pill); color: var(--muted); font-size: 13px;
+    font-family: var(--sans); transition: background .15s, color .15s;
+  }
+  .logout-btn svg { width: 18px; height: 18px; flex: none; fill: currentColor; }
+  .logout-btn:hover { background: var(--fail-bg); color: var(--fail); }
+  .logout-btn:focus-visible { outline: 2px solid var(--g-blue); outline-offset: 2px; }
+  .sidebar.collapsed .side-foot { padding: 12px 8px 2px; }
+  .sidebar.collapsed #sideStat, .sidebar.collapsed .sf-sep { display: none; }
+  .sidebar.collapsed .logout-btn { justify-content: center; padding: 9px 0; }
+
+  /* Content area */
+  .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    height: var(--topbar-h); flex: none; display: flex; align-items: center;
+    justify-content: space-between; gap: 16px; padding: 0 24px;
+    position: sticky; top: 0; z-index: 10; background: var(--bg);
+  }
+  .page-title { font-size: 20px; font-weight: 400; letter-spacing: -.01em; color: var(--text); }
+  .topbar-right { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
+         box-shadow: 0 0 0 3px rgba(20,108,46,.14); }
+  .dot.bad { background: var(--fail); box-shadow: 0 0 0 3px rgba(179,38,30,.14); }
+
+  main { flex: 1; padding: 4px 24px 36px; min-width: 0; }
+  h2 {
+    font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; min-height: 32px;
+  }
+
+  /* Cards */
+  .panel, .card {
+    background: var(--card); border-radius: var(--r-card);
+    padding: 20px 22px; margin-bottom: 14px; box-shadow: var(--shadow);
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid-main { display: grid; grid-template-columns: minmax(0,2fr) minmax(310px,1fr);
+               gap: 14px; margin-bottom: 14px; align-items: start; }
+  .grid-2 > *, .grid-main > * { margin-bottom: 0; }
+  .stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .stack > * { margin-bottom: 0; }
+
+  /* KPI */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
+             gap: 14px; margin-bottom: 14px; }
+  .kpi { background: var(--card); border-radius: var(--r-card); padding: 15px 18px;
+         box-shadow: var(--shadow); }
+  .kpi .label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .kpi .value { font-size: 27px; font-weight: 400; letter-spacing: -.02em;
+                line-height: 1.2; color: var(--text); font-variant-numeric: tabular-nums; }
+  .kpi .sub { color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px;
+       padding: 9px 10px; border-bottom: 1px solid var(--outline-soft); white-space: nowrap; }
+  td { padding: 11px 10px; border-bottom: 1px solid var(--outline-soft);
+       vertical-align: top; overflow-wrap: anywhere; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #F6F9FE; }
+  tbody tr.row-dead { background: var(--fail-bg); box-shadow: inset 3px 0 0 var(--fail); }
+  td.nw, th.nw { white-space: nowrap; overflow-wrap: normal; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .empty { text-align: center; color: var(--muted); padding: 36px 0; }
+
+  /* Buttons */
+  .btn, .controls button, button.btn {
+    all: unset; box-sizing: border-box;
+    cursor: pointer; font-family: var(--sans); font-size: 13px;
+    padding: 8px 18px; border-radius: var(--r-pill); white-space: nowrap;
+    background: var(--nav-on); color: var(--nav-on-fg); font-weight: 500;
+    transition: background .15s;
+  }
+  .btn:hover { background: #C2D8FA; }
+  .btn:focus-visible { outline: 2px solid var(--g-blue); outline-offset: 2px; }
+  .btn.muted { background: var(--surface-hi); color: var(--text-2); font-weight: 400; }
+  .btn.muted:hover { background: var(--surface-press); }
+  .btn.danger { background: transparent; color: var(--fail); box-shadow: inset 0 0 0 1px var(--outline); }
+  .btn.danger:hover { background: var(--fail-bg); }
+  .btn[disabled] { opacity: .38; cursor: default; pointer-events: none; }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .controls button { background: var(--surface-hi); color: var(--text-2);
+                     font-weight: 400; padding: 7px 15px; }
+  .controls button:hover { background: var(--surface-press); }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  select, input[type=text], input[type=password], input[type=number], textarea {
+    font-family: var(--sans); font-size: 13px; color: var(--text);
+    background: var(--surface-hi); border: 1px solid transparent;
+    border-radius: 10px; padding: 8px 12px; outline: none; transition: all .15s;
+  }
+  select:focus, input:focus, textarea:focus {
+    background: var(--card); border-color: var(--g-blue);
+    box-shadow: 0 0 0 3px rgba(66,133,244,.15);
+  }
+  .controls select { padding: 6px 10px; font-size: 12.5px; }
+
+  /* Badges */
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: var(--r-pill);
+    font-size: 11.5px; font-weight: 500; white-space: nowrap;
+    background: var(--surface-hi); color: var(--text-2);
+  }
+  .badge.ok { background: var(--ok-bg); color: var(--ok); }
+  .badge.fail { background: var(--fail-bg); color: var(--fail); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.muted { background: var(--surface-press); color: var(--muted); }
+  .badge.blue { background: #E8F0FE; color: #1967D2; font-weight: 600; }
+  .badge.purple { background: #F3E8FD; color: #7627BB; font-weight: 600; }
+  .badge.green { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+  .badge.red { background: var(--fail-bg); color: var(--fail); font-weight: 600; }
+
+  .user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    border-radius: var(--r-pill);
+    background: var(--card);
+    border: 1px solid var(--outline);
+    color: var(--text);
+    box-shadow: var(--shadow);
+    font-size: 13px;
+  }
+
+  .pre {
+    font-family: var(--mono); font-size: 12px; background: var(--surface-hi);
+    padding: 8px 10px; border-radius: 8px; overflow-x: auto;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .err { color: var(--fail); }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .card-desc { font-size: 12.5px; color: var(--muted); margin: -4px 0 16px; }
+
+  .kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px 16px;
+        font-size: 13px; margin-top: 12px; }
+  .kv > div { padding: 6px 0; border-bottom: 1px solid var(--outline-soft); }
+  .kv > div:nth-last-child(-n+2) { border-bottom: none; }
+  .hint { color: var(--muted); font-size: 11.5px; line-height: 1.5; margin-top: 4px; }
+
+  details.note {
+    background: var(--surface-hi); border-radius: 12px;
+    padding: 10px 14px; font-size: 12px; color: var(--muted);
+  }
+  details.note summary {
+    cursor: pointer; font-weight: 500; color: var(--text-2);
+    user-select: none; outline: none;
+  }
+  details.note .body { margin-top: 8px; line-height: 1.6; }
+
+  /* Runtime settings form */
+  .rt-group { margin-bottom: 22px; }
+  .rt-group:last-child { margin-bottom: 0; }
+  .rt-group-title {
+    font-size: 12px; font-weight: 500; color: var(--muted);
+    letter-spacing: .02em; padding-bottom: 8px; margin-bottom: 12px;
+    border-bottom: 1px solid var(--outline-soft);
+  }
+  .rt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px 18px; align-items: start;
+  }
+  .rt-field { display: flex; flex-direction: column; min-width: 0; }
+  .rt-field label {
+    font-size: 12px; color: var(--text-2); margin-bottom: 5px; font-weight: 500;
+  }
+  .rt-field input[type=number], .rt-field input[type=text], .rt-field select {
+    width: 100%; height: 36px; padding: 0 10px;
+  }
+  .rt-field.checkbox { flex-direction: row; align-items: center; gap: 10px;
+                       margin-top: 25px; }
+  .rt-field.checkbox label { margin-bottom: 0; cursor: pointer; }
+  .rt-field.checkbox input[type=checkbox] {
+    width: 16px; height: 16px; accent-color: var(--g-blue); cursor: pointer;
+  }
+  .rt-field .hint { margin-top: 5px; font-size: 11px; line-height: 1.45; }
+
+  /* Signature track */
+  .slot-scroll { max-height: 360px; overflow-y: auto; }
+  .slot { padding: 12px 0; border-bottom: 1px solid var(--outline-soft); }
+  .slot:last-child { border-bottom: none; }
+  .slot-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .slot-name { font-weight: 500; color: var(--text); }
+  .slot-count { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .slot-count b { color: var(--text); font-weight: 500; }
+  .track {
+    position: relative; height: 10px; background: var(--surface-hi);
+    border-radius: var(--r-pill); overflow: hidden;
+  }
+  .track .fill { height: 100%; border-radius: var(--r-pill); background: var(--g-sweep);
+                 transition: width .3s; }
+  .track .redline {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: var(--fail); box-shadow: 0 0 4px var(--fail);
+  }
+  .slot-note { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+  .slot-note.warn { color: var(--warn); }
+  .slot-note.danger { color: var(--fail); font-weight: 500; }
+
+  /* Charts */
+  .chart-wrap { position: relative; height: 260px; width: 100%; }
+
+  .scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Login */
+  .login-box {
+    width: 380px; max-width: 90vw; margin: auto; align-self: center;
+    background: var(--card); border-radius: 24px; padding: 36px 32px 32px;
+    box-shadow: 0 4px 20px rgba(60,64,67,.08); text-align: center;
+  }
+  .login-box .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 19px; font-weight: 400; color: var(--text); margin-bottom: 6px;
+  }
+  .login-form { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+  .login-form input { width: 100%; height: 42px; text-align: center; font-size: 14px; }
+  .login-form button { width: 100%; height: 42px; font-size: 14px; }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(31,31,31,.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; padding: 16px;
+  }
+  .modal {
+    background: var(--card); border-radius: 20px; padding: 24px 26px;
+    width: min(480px, 94vw); max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 8px 30px rgba(0,0,0,.2);
+  }
+  .modal h3 { font-size: 17px; font-weight: 500; margin-bottom: 6px; }
+  .modal .desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; }
+  .modal .actions { margin-top: 20px; justify-content: flex-end; }
+  .modal-err { margin-bottom: 12px; font-size: 12px; }
+
+  /* Segmented bar */
+  .segbar {
+    display: flex; background: var(--surface-hi); padding: 3px;
+    border-radius: var(--r-pill); margin: 12px 0 14px; gap: 2px;
+  }
+  .segbar button {
+    all: unset; flex: 1; text-align: center; padding: 6px 12px;
+    font-size: 12.5px; font-weight: 500; color: var(--muted);
+    border-radius: var(--r-pill); cursor: pointer; transition: all .15s;
+  }
+  .segbar button.on {
+    background: var(--card); color: var(--text);
+    box-shadow: 0 1px 3px rgba(60,64,67,.12);
+  }
+
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; color: var(--text-2); margin-bottom: 4px; font-weight: 500; }
+  .field label .req { color: var(--fail); }
+  .field input, .field textarea, .field select { width: 100%; }
+
+  .ck-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .ck-grid .field.wide { grid-column: 1 / -1; }
+  .ck-grid .field { margin-bottom: 0; }
+  .ck-grid input { font-family: var(--mono); font-size: 12px;
+                   overflow: hidden; text-overflow: ellipsis; }
+  .ck-extra { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+  .modal.wide { width: min(620px, 94vw); }
+
+  @media (max-width: 1100px) { .grid-main { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    #app { flex-direction: column; }
+    .sidebar, .sidebar.collapsed { width: 100%; flex-basis: auto; height: auto;
+                                   position: static; padding: 8px 12px; }
+    .side-top { height: 48px; }
+    .sidebar nav { flex-direction: row; overflow-x: auto; margin-top: 2px; }
+    .sidebar.collapsed nav button { padding: 10px 16px; }
+    .sidebar.collapsed .nav-label { display: inline; }
+    .side-foot { display: none; }
+    .topbar { padding: 0 14px; }
+    main { padding: 4px 14px 28px; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .chart-wrap { height: 210px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// Empirical test range for single egress before sorry redirect: 80-180. Using 80 as conservative baseline.
+const BAN_LINE = 80;
+let currentUser = null;
+
+const api = async (path, opts = {}) => {
+  const r = await fetch(path, { credentials: 'include', ...opts,
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  if (r.status === 401) { renderLogin(); throw new Error('unauthorized'); }
+  return r.json();
+};
+
+const fmt = {
+  ts: (sec) => new Date(sec * 1000).toLocaleString('en-US', { hour12: false }),
+  ms: (ms) => ms == null ? '-' : (ms < 1000 ? ms + 'ms' : (ms/1000).toFixed(2) + 's'),
+  num: (n) => (n || 0).toLocaleString(),
+  pct: (n) => (n * 100).toFixed(1) + '%',
+};
+
+let charts = {};
+const destroyChart = (key) => { if (charts[key]) { charts[key].destroy(); delete charts[key]; } };
+
+// ─── Pages ──────────────────────────────────────────────────────────────────
+
+const pages = {
+  dashboard: async () => {
+    const stats = await api('api/stats?hours=24');
+    const usage = await api('api/usage');
+    return `
+      <div class="kpi-row">
+        <div class="kpi"><div class="label">24h Requests</div><div class="value">${fmt.num(stats.total_requests)}</div></div>
+        <div class="kpi"><div class="label">Success Rate</div><div class="value">${fmt.pct(stats.success_rate)}</div>
+          <div class="sub">${fmt.num(stats.success)} succeeded · ${fmt.num(stats.failures)} failed</div></div>
+        <div class="kpi"><div class="label">Avg Latency</div><div class="value">${fmt.ms(stats.avg_ms)}</div></div>
+        <div class="kpi"><div class="label">Input Tokens</div><div class="value">${fmt.num(stats.prompt_tokens)}</div></div>
+        <div class="kpi"><div class="label">Output Tokens</div><div class="value">${fmt.num(stats.output_tokens)}</div></div>
+      </div>
+
+      <div class="grid-main">
+        <div class="panel">
+          <h2>Requests & Latency
+            <span class="controls">
+              <select id="rangeSel">
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+              </select>
+            </span>
+          </h2>
+          <div class="chart-wrap"><canvas id="chartReq"></canvas></div>
+        </div>
+
+        <div class="stack">
+        <div class="panel">
+          <h2>Distance to Ban Threshold
+            <span class="controls"><button onclick="refreshPage()">Refresh</button></span>
+          </h2>
+          <div class="slot-scroll">
+            ${(usage.items || []).map(u => {
+              const rph = u.rph || 0;
+              const limit = u.limit_rph || 0;
+              const pct = Math.min(rph / BAN_LINE * 100, 100);
+              const limitPct = limit ? Math.min(limit / BAN_LINE * 100, 100) : null;
+              const left = Math.max(BAN_LINE - rph, 0);
+              let noteCls = '', note = `~${left} requests left`;
+              if (rph >= BAN_LINE) { noteCls = 'danger'; note = 'Threshold exceeded; rate-limit block imminent'; }
+              else if (rph >= BAN_LINE * 0.75) { noteCls = 'warn'; note = `Nearing threshold, ~${left} left`; }
+              else if (rph === 0) { note = 'No requests this hour'; }
+              return `<div class="slot">
+                <div class="slot-head">
+                  <span class="slot-name">${escapeHtml(u.name)}</span>
+                  <span class="slot-count"><b>${rph}</b> / ${BAN_LINE}</span>
+                </div>
+                <div class="track">
+                  <div class="fill" style="width:${pct}%"></div>
+                  ${limitPct !== null ? `<div class="redline" style="left:${limitPct}%"
+                    title="Local RPH limit: ${limit}"></div>` : ''}
+                </div>
+                <div class="slot-note ${noteCls}">${note} · Concurrency ${u.inflight}/${u.limit_concurrent || '∞'}
+                  · RPM ${u.rpm}/${u.limit_rpm || '∞'} · RPH ${rph}/${u.limit_rph || '∞'}</div>
+              </div>`;
+            }).join('') || '<div class="empty">No requests processed yet</div>'}
+          </div>
+          <details class="note" style="margin:12px 0 0">
+            <summary>How this threshold works</summary>
+            <div class="body">
+              Under empirical testing, a single egress hitting Google <b>80–180 times/hour</b> gets redirected to <code>sorry/index</code>.
+              The track marks the <b>lower bound (80)</b> as a safe baseline. The range varies based on connection pooling and IP reputation:
+              with concurrency 10, pooled reuse reached 172–177 before block, while new connections per request reached 106–109.<br><br>
+              <b>This is not a hard cutoff.</b> Request pacing is key — paced requests at 10 req/min ran 800 times across 110 minutes without a single block.
+              Treat this bar as a safe conservative reference.<br><br>
+              Once blocked, IP cooldown is hard (0 success in 60 probes over 20 min) and automatically lifts after 106–121 min.
+              The red marker shows your configured local RPH limit, which returns 429 early without burning Google quota.
+              To scale capacity, add egress IPs in 'Proxy Pool' — each proxy acts as an independent slot.
+            </div>
+          </details>
+        </div>
+
+        <div class="panel">
+          <h2>Connectivity Test
+            <span class="controls"><button class="btn" onclick="runTest()">Test Once</button></span>
+          </h2>
+          <select id="testProxy" style="width:100%">
+            <option value="">Auto-select (by scheduling rules)</option>
+            <option value="0">Direct (Host IP)</option>
+          </select>
+          <p class="hint" style="margin-top:10px">
+            Sends a real probe request to verify upstream connectivity. Does not consume rate limit quota or write request logs.
+            Returning 302 or 429 indicates the egress IP is blocked and needs switching.
+          </p>
+          <div id="testResult" style="display:none; margin-top:12px;"></div>
+        </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h2>By Model</h2>
+          <table>
+            <colgroup><col style="width:38%"><col style="width:14%"><col style="width:14%"><col style="width:16%"><col style="width:18%"></colgroup>
+            <thead><tr><th>Model</th><th class="nw">Requests</th><th class="nw">Success</th><th class="nw">Avg Latency</th><th class="nw">Tokens</th></tr></thead>
+            <tbody>${(stats.by_model || []).map(m => `
+              <tr><td class="truncate" title="${escapeHtml(m.model)}">${m.model}</td>
+                  <td class="num nw">${fmt.num(m.requests)}</td>
+                  <td class="num nw">${fmt.num(m.success)}</td>
+                  <td class="num nw">${fmt.ms(m.avg_ms)}</td>
+                  <td class="num nw">${fmt.num(m.prompt_tokens + m.output_tokens)}</td></tr>`).join('')
+              || '<tr><td colspan="5" class="empty">No data</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h2>By Egress</h2>
+          <table>
+            <colgroup><col style="width:46%"><col style="width:18%"><col style="width:18%"><col style="width:18%"></colgroup>
+            <thead><tr><th>Egress</th><th class="nw">Requests</th><th class="nw">Success</th><th class="nw">Avg Latency</th></tr></thead>
+            <tbody>${(stats.by_proxy || []).map(p => `
+              <tr><td class="truncate">${!p.proxy || p.proxy === '(direct)' ? 'Direct' : escapeHtml(p.proxy)}</td>
+                  <td class="num nw">${fmt.num(p.requests)}</td>
+                  <td class="num nw">${fmt.num(p.success)}</td>
+                  <td class="num nw">${fmt.ms(p.avg_ms)}</td></tr>`).join('')
+              || '<tr><td colspan="4" class="empty">No data</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+          <h2>Error Breakdown (Last ${stats.window_hours || 24}h)</h2>
+          <table>
+            <colgroup><col style="width:22%"><col style="width:10%"><col style="width:68%"></colgroup>
+            <thead><tr><th>Type</th><th class="nw">Count</th><th>Meaning / Action Required</th></tr></thead>
+            <tbody>
+              ${(stats.error_breakdown || []).map(e => `<tr>
+                <td class="nw"><span class="badge ${ERR_BADGE[e.kind] || 'muted'}">${escapeHtml(e.kind)}</span></td>
+                <td class="num nw">${e.count}</td>
+                <td style="font-size:12.5px">${ERR_DESC[e.kind] || ''}
+                  <div class="pre" style="margin-top:5px;color:var(--muted)">${escapeHtml(e.sample || '')}</div></td>
+              </tr>`).join('') || '<tr><td colspan="3" class="empty">No failures in this window</td></tr>'}
+            </tbody>
+          </table>
+      </div>
+    `;
+  },
+
+  requests: async () => {
+    return `
+      <div class="panel">
+        <h2>Requests
+          <span class="controls">
+            <select id="reqStatus">
+              <option value="">All</option>
+              <option value="ok">Success</option>
+              <option value="fail">Failed</option>
+            </select>
+            <select id="reqModel"><option value="">All Models</option></select>
+            <select id="reqSize">
+              <option value="25">25 / page</option>
+              <option value="50" selected>50 / page</option>
+              <option value="100">100 / page</option>
+              <option value="200">200 / page</option>
+            </select>
+            <button onclick="loadReqs()">Refresh</button>
+          </span>
+        </h2>
+        <div class="scroll-wrap">
+          <table id="reqTable">
+            <colgroup>
+              <col style="width:140px"><col style="width:130px"><col style="width:130px">
+              <col style="width:90px"><col style="width:120px"><col style="width:70px">
+              <col style="width:70px"><col style="width:70px">
+              <col style="width:60px"><col style="width:60px"><col style="width:140px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="nw">Time</th><th class="nw">Model</th><th class="nw">Actual Model</th>
+                <th class="nw">Egress</th><th class="nw">Account</th><th class="nw">Status</th>
+                <th class="nw">TTFB</th><th class="nw">Total</th>
+                <th class="nw">In</th><th class="nw">Out</th><th>Endpoint</th>
+              </tr>
+            </thead>
+            <tbody><tr><td colspan="11" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <div id="reqPager" style="display:flex; justify-content:space-between; align-items:center; margin-top:14px;"></div>
+      </div>
+    `;
+  },
+
+  proxies: async () => {
+    const data = await api('api/proxies');
+    const items = data.items || [];
+    return `
+      <div class="panel">
+        <h2>Proxy Pool
+          <span class="controls"><button class="btn" onclick="addProxy()">+ Add Proxy</button></span>
+        </h2>
+        <details class="note" style="margin-bottom:14px">
+          <summary>Each proxy is an independent IP slot</summary>
+          <div class="body">
+            Each proxy has its own concurrency, RPM, and RPH quotas. <b>Adding proxies scales total throughput linearly</b>.
+            Requests automatically route to an available proxy; if all are saturated, HTTP 429 is returned.
+            5 consecutive failures trigger an automatic circuit breaker; click 'Reset' to recover manually.<br><br>
+            Note: Once at least one proxy is configured, requests <b>do not fall back to direct connection by default</b> to prevent exposing the host IP.
+            To prioritize availability, enable 'Fallback to Direct when no proxy available' under Settings.
+            Tripped proxies automatically return to pool after a cooldown (default 120 min, aligning with Google 106–121 min unban window), or can be reset manually here.<br><br>
+            Empirical testing shows a single egress gets blocked by Google after 80–180 requests/hour, so capacity scaling relies entirely on adding egress IPs.
+          </div>
+        </details>
+        <table>
+          <colgroup>
+            <col style="width:50px"><col style="width:120px"><col><col style="width:70px">
+            <col style="width:60px"><col style="width:180px"><col style="width:160px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="nw">ID</th><th class="nw">Name</th><th>Proxy URL</th><th class="nw">Status</th>
+              <th class="nw">Failures</th><th class="nw">Last Error</th><th class="nw">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(p => `<tr>
+              <td class="nw">#${p.id}</td>
+              <td class="nw">${escapeHtml(p.name)}</td>
+              <td style="font-family:var(--mono);font-size:12px;">${escapeHtml(p.url)}</td>
+              <td class="nw">${p.enabled ? '<span class="badge ok">Enabled</span>' : '<span class="badge muted">Disabled</span>'}</td>
+              <td class="num nw">${p.fail_count}</td>
+              <td class="truncate" style="font-size:12px;color:var(--muted)" title="${escapeHtml(p.last_fail_reason || '')}">
+                ${escapeHtml(p.last_fail_reason || '—')}</td>
+              <td class="nw actions">
+                <button class="btn muted" onclick="toggleProxy(${p.id})">${p.enabled ? 'Disable' : 'Enable'}</button>
+                <button class="btn muted" onclick="resetProxy(${p.id})">Reset</button>
+                <button class="btn danger" onclick="delProxy(${p.id})">Delete</button>
+              </td>
+            </tr>`).join('') || '<tr><td colspan="7" class="empty">No proxies configured yet. Click "+ Add Proxy" to add one.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  cookies: async () => {
+    const data = await api('api/cookies');
+    const items = data.items || [];
+    const deadN = items.filter(a => a.health === 'dead').length;
+    return `
+      <div class="panel">
+        <h2>Cookie Pool
+          <span class="controls">
+            ${deadN > 0 ? '<span class="badge fail" style="margin-right:8px" title="These accounts are failing authentication, likely expired cookies. Exporting via Firefox is recommended">' + deadN + ' Likely Expired</span>' : ''}
+            <span class="badge ${data.enabled > 0 ? 'ok' : 'muted'}" style="margin-right:8px">${data.enabled || 0} active / ${data.total || 0} total</span>
+            <button class="btn" onclick="addCookieAcct()">+ Import Cookie</button>
+          </span>
+        </h2>
+        <details class="note" style="margin-bottom:14px">
+          <summary>One logged-in Google account per entry</summary>
+          <div class="body">
+            Paste the <b>full cookie string</b> from gemini.google.com (must contain at least SID, HSID, SSID, APISID, SAPISID, __Secure-1PSID, __Secure-1PSIDTS).
+            Requests rotate accounts automatically via <b>least-recently-used</b> scheduling.
+            Media generation has quotas per account (e.g. 10/day for images), so adding accounts scales media quota linearly.<br><br>
+            Credentials are <b>never sent back to the browser</b> after saving. The table displays only masked summaries (cookie count, key headers, SAPISID suffix, failure count).
+            Accounts missing <code>__Secure-1PSIDTS</code> are highlighted in yellow; initial keep-alive will attempt renewal from Google.
+            If renewal repeatedly fails, re-export using <b>Firefox</b> (recent Chrome versions enforce device-bound sessions that cannot be renewed externally).
+          </div>
+        </details>
+        <table>
+          <colgroup>
+            <col style="width:40px"><col style="width:130px"><col style="width:80px">
+            <col style="width:110px"><col style="width:70px"><col style="width:50px">
+            <col style="width:130px"><col style="width:180px"><col style="width:230px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="nw">ID</th><th class="nw">Label</th><th class="nw">Status</th>
+              <th class="nw">Key Cookies</th><th class="nw">SAPISID</th><th class="nw">Failures</th>
+              <th class="nw">Last Success</th><th>Last Error</th><th class="nw">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map(a => {
+              const labelHtml = a.label ? escapeHtml(a.label) : '<span class="badge muted">Unnamed</span>';
+              const statusHtml =
+                a.health === 'dead' ? '<span class="badge fail" title="Authentication failing, cookie likely expired. Recommend re-exporting with Firefox">Likely Expired</span>'
+                : a.health === 'disabled' ? '<span class="badge muted">Disabled</span>'
+                : a.health === 'unknown' ? '<span class="badge warn" title="Not tested yet. Click Check to verify">Untested</span>'
+                : '<span class="badge ok">Healthy</span>';
+              const keyHtml = `
+                <td class="nw" title="${a.cookie_count} total cookies, key items: ${(a.key_cookies||[]).join(' / ')}">
+                  <span class="badge ${a.has_1psidts ? 'ok' : 'warn'}">${(a.key_cookies||[]).length}/7 items</span>
+                  ${a.has_1psidts ? '' : '<span class="badge warn" title="Missing __Secure-1PSIDTS; first keep-alive will attempt renewal. Re-export in Firefox if this fails">Missing TS</span>'}
+                </td>`;
+              return `<tr>
+                <td class="nw">#${a.id}</td>
+                <td class="truncate" title="${escapeHtml(a.label || '')}">${labelHtml}</td>
+                <td class="nw">${statusHtml}</td>
+                ${keyHtml}
+                <td class="nw" style="font-family:var(--mono);font-size:12px;">${a.sapisid_tail ? '…' + escapeHtml(a.sapisid_tail) : '<span class="muted">—</span>'}</td>
+                <td class="num nw">${a.fail_count}</td>
+                <td class="nw" style="font-size:12px;">${a.last_ok_at ? fmt.ts(a.last_ok_at) : '<span class="muted">—</span>'}</td>
+                <td class="truncate" style="font-size:12px;color:var(--muted)" title="${escapeHtml(a.last_fail_reason || '')}">
+                  ${escapeHtml(a.last_fail_reason || '—')}</td>
+                <td class="nw actions">
+                  <button class="btn muted" onclick="checkCookieAcct(${a.id}, this)">Check</button>
+                  <button class="btn muted" onclick="rotateCookieAcct(${a.id}, this)">Keep-Alive</button>
+                  <button class="btn muted" onclick="toggleCookieAcct(${a.id})">${a.status === 'enabled' ? 'Disable' : 'Enable'}</button>
+                  <button class="btn muted" onclick="editCookieAcct(${a.id}, ${JSON.stringify(a.label || '').replace(/"/g, '&quot;')}, ${JSON.stringify(a.note || '').replace(/"/g, '&quot;')})">Edit</button>
+                  <button class="btn danger" onclick="delCookieAcct(${a.id})">Delete</button>
+                </td>
+              </tr>`;
+            }).join('') || '<tr><td colspan="9" class="empty">Cookie pool is empty. Click "+ Import Cookie" to add an account.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  },
+
+  users: async () => {
+    const data = await api('api/users');
+    const users = data.users || [];
+    return `
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div>
+            <h2>User Management</h2>
+            <p class="card-desc">All registered users and their isolated cookie & request statistics.</p>
+          </div>
+          <button class="btn" style="background:var(--primary);color:#fff;" onclick="openNewUserModal()">+ Add User</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>API Key</th>
+                <th>Cookies</th>
+                <th>Requests</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${users.map(u => `
+                <tr>
+                  <td>#${u.id}</td>
+                  <td><b>${escapeHtml(u.username)}</b></td>
+                  <td><span class="badge ${u.role === 'admin' ? 'blue' : 'gray'}">${u.role}</span></td>
+                  <td><span class="badge ${u.status === 'active' ? 'green' : 'red'}">${u.status}</span></td>
+                  <td><code style="font-size:11px;">${escapeHtml(u.api_key.substring(0, 16))}...</code></td>
+                  <td><b>${u.cookie_count}</b></td>
+                  <td>${u.req_count}</td>
+                  <td>${fmt.ts(u.created_at)}</td>
+                  <td>
+                    ${u.role !== 'admin' ? `
+                      <button class="btn sm" onclick="toggleUserStatus(${u.id}, '${u.status}')">
+                        ${u.status === 'active' ? 'Disable' : 'Enable'}
+                      </button>
+                      <button class="btn sm danger" style="margin-left:4px;" onclick="deleteUser(${u.id})">Delete</button>
+                    ` : '<span class="muted">—</span>'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  },
+
+  settings: async () => {
+    const keyInfo = await api('api/apikey').catch(() => ({ key: '', locked: false }));
+    apiKeyLocked = keyInfo.locked;
+
+    if (currentUser && currentUser.role !== 'admin') {
+      return `
+        <div class="panel">
+          <h2>Your Personal API Key</h2>
+          <p class="card-desc">
+            Use this API key in your clients (OpenAI SDK, NextChat, Cherry Studio, New API, etc.).
+            Requests made with this key <b>strictly use your own cookies</b> from your Cookie Pool.
+          </p>
+          <div style="display:flex;gap:10px;align-items:center;max-width:560px;">
+            <input id="keyDisplay" type="password" readonly value="${escapeHtml(keyInfo.key || '')}"
+                   style="flex:1;font-family:var(--mono);font-size:12.5px;letter-spacing:.03em;" />
+            <button class="btn muted" onclick="toggleKeyVis()">Show</button>
+            <button class="btn muted" onclick="copyKey()">Copy</button>
+          </div>
+          <div class="actions" style="margin-top:12px;">
+            <button class="btn muted" onclick="rotateKey()">Regenerate API Key</button>
+            <button class="btn muted" onclick="customKey()">Custom Key</button>
+          </div>
+          <details class="note" style="margin-top:14px;">
+            <summary>OpenAI Client Setup Example</summary>
+            <div class="body">
+              <pre style="margin:0;font-family:var(--mono);font-size:12px;overflow-x:auto;">
+curl http://localhost:8083/v1/chat/completions \\
+  -H "Authorization: Bearer ${escapeHtml(keyInfo.key || 'YOUR_KEY')}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"gemini-3.6-flash",
+       "messages":[{"role":"user","content":"Hello!"}]}'</pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="panel">
+          <h2>Your Account</h2>
+          <table class="table">
+            <tbody>
+              <tr><td style="width:140px;" class="muted">Username</td><td><b>${escapeHtml(currentUser.username)}</b></td></tr>
+              <tr><td class="muted">Role</td><td><span class="badge blue">${currentUser.role}</span></td></tr>
+              <tr><td class="muted">Member Since</td><td>${fmt.ts(currentUser.created_at)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    const cfg = await api('api/config');
+    rtCfgCache = cfg.config || {};
+    return `
+      <div class="panel">
+        <h2>Runtime Settings</h2>
+        <p class="card-desc">
+          Changes take effect <b>immediately</b> upon saving without server restarts. Saved to database with higher precedence than
+          <code>config.json</code> and CLI flags.
+        </p>
+        <div id="rtForm"></div>
+        <div class="actions" style="margin-top:18px;">
+          <button class="btn" onclick="saveRtCfg()">Save & Apply</button>
+          <button class="btn muted" onclick="loadRtCfg()">Discard Changes</button>
+          <span id="rtMsg" style="font-size:12.5px;"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Master Admin API Key</h2>
+        <p class="card-desc">
+          ${apiKeyLocked
+            ? 'Locked by <code>--api-key</code> / <code>API_KEY</code>; update deployment config to change.'
+            : 'Authenticates <code>/v1/*</code> requests; can be rotated at any time.'}
+        </p>
+        <div style="display:flex;gap:10px;align-items:center;max-width:560px;">
+          <input id="keyDisplay" type="password" readonly value="${escapeHtml(keyInfo.key || '')}"
+                 style="flex:1;font-family:var(--mono);font-size:12.5px;letter-spacing:.03em;" />
+          <button class="btn muted" onclick="toggleKeyVis()">Show</button>
+          <button class="btn muted" onclick="copyKey()">Copy</button>
+        </div>
+        ${!apiKeyLocked ? `
+          <div class="actions" style="margin-top:12px;">
+            <button class="btn muted" onclick="rotateKey()">Generate Random Key</button>
+            <button class="btn muted" onclick="customKey()">Custom</button>
+          </div>` : ''}
+        <details class="note" style="margin-top:14px;">
+          <summary>Example Request</summary>
+          <div class="body">
+            <pre style="margin:0;font-family:var(--mono);font-size:12px;overflow-x:auto;">
+curl http://localhost:8083/v1/chat/completions \\
+  -H "Authorization: Bearer ${escapeHtml(keyInfo.key || 'YOUR_KEY')}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"gemini-3.6-flash",
+       "messages":[{"role":"user","content":"Hello"}]}'</pre>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <h2>Deployment Configuration</h2>
+        <p class="card-desc">
+          Modifying these settings requires restarting the process, so they are managed in <code>docker-compose.yml</code> rather than web forms — keeping sensitive credentials off the browser.
+        </p>
+        <div id="deployInfo"></div>
+      </div>
+
+      <div style="text-align:center;color:var(--muted);font-size:12px;padding:16px 0 24px;">
+        gemini-web2api-go · Single Binary · SQLite · Multi-User Isolation · Chrome 146 Fingerprint
+      </div>
+    `;
+  },
+};
+
+// ─── Chart ──────────────────────────────────────────────────────────────────
+
+async function loadChart(range = '24h') {
+  destroyChart('req');
+  const d = await api(`api/timeseries?range=${range}`);
+  const s = d.series || [];
+  const ctx = document.getElementById('chartReq');
+  if (!ctx) return;
+  const labels = s.map(x => fmt.ts(x.bucket));
+  const reqs = s.map(x => x.requests);
+  const p50 = s.map(x => x.p50_ms || 0);
+
+  charts['req'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Requests', data: reqs, yAxisID: 'y',
+          borderColor: '#4285F4', backgroundColor: 'rgba(66,133,244,.12)',
+          fill: true, tension: .25, pointRadius: s.length > 50 ? 0 : 3 },
+        { label: 'P50 Latency', data: p50, yAxisID: 'y1',
+          borderColor: '#9B72CB', borderDash: [4, 4],
+          fill: false, tension: .25, pointRadius: 0 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 12 } } },
+      scales: {
+        y: { type: 'linear', position: 'left', beginAtZero: true,
+             grid: { color: 'rgba(0,0,0,.04)' }, ticks: { precision: 0 } },
+        y1: { type: 'linear', position: 'right', beginAtZero: true,
+              grid: { drawOnChartArea: false },
+              ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1) + 's' : v + 'ms' } },
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
+      },
+    },
+  });
+}
+
+// ─── Requests table ─────────────────────────────────────────────────────────
+
+let reqOffset = 0;
+function reqPageSize() {
+  const el = document.getElementById('reqSize');
+  return el ? (parseInt(el.value, 10) || 50) : 50;
+}
+
+async function loadReqs() {
+  const status = document.getElementById('reqStatus')?.value || '';
+  const model = document.getElementById('reqModel')?.value || '';
+  const size = reqPageSize();
+  const d = await api(`api/requests?limit=${size}&offset=${reqOffset}&status=${status}&model=${encodeURIComponent(model)}`);
+  const tbody = document.querySelector('#reqTable tbody');
+  const items = d.items || [];
+  tbody.innerHTML = items.map(r => `
+    <tr>
+      <td class="nw">${fmt.ts(r.ts)}</td>
+      <td class="nw truncate" title="${escapeHtml(r.model)}">${escapeHtml(r.model)}</td>
+      <td class="nw">${upstreamCell(r)}</td>
+      <td class="nw truncate">${r.proxy_name ? escapeHtml(r.proxy_name) : '<span class="badge muted">Direct</span>'}</td>
+      <td class="nw truncate" title="${escapeHtml(r.account_label || '')}">${r.account_label ? escapeHtml(r.account_label)
+        : (r.account_id ? '#' + r.account_id : '<span class="badge muted">Anonymous</span>')}</td>
+      <td class="nw"><span class="badge ${r.status === 200 ? 'ok' : 'fail'}">${r.status}</span></td>
+      <td class="num nw">${fmt.ms(r.ttfb_ms)}</td>
+      <td class="num nw">${fmt.ms(r.total_ms)}</td>
+      <td class="num nw">${fmt.num(r.prompt_tokens)}</td>
+      <td class="num nw">${fmt.num(r.output_tokens)}</td>
+      <td style="font-family:var(--mono);font-size:12px;">${escapeHtml(r.endpoint || '/v1/chat/completions')}${r.stream ? ' <span class="badge muted">stream</span>' : ''}${r.error ? '<div class="pre err truncate" style="margin-top:3px;" title="' + escapeHtml(r.error) + '"><b>Error: </b>' + escapeHtml(r.error) + '</div>' : ''}</td>
+    </tr>`).join('') || '<tr><td colspan="11" class="empty">No requests recorded yet</td></tr>';
+
+  const total = d.total || 0;
+  const page = Math.floor(reqOffset / size) + 1;
+  const pages = Math.max(Math.ceil(total / size), 1);
+  const from = total ? reqOffset + 1 : 0;
+  const to = Math.min(reqOffset + size, total);
+  document.getElementById('reqPager').innerHTML = `
+    <span class="muted">${from}–${to} of ${total} records</span>
+    <span class="controls">
+      <button ${reqOffset <= 0 ? 'disabled' : ''}
+              onclick="reqOffset=0;loadReqs()">First</button>
+      <button ${reqOffset <= 0 ? 'disabled' : ''}
+              onclick="reqOffset=Math.max(0,reqOffset-${size});loadReqs()">Prev</button>
+      <span class="muted" style="min-width:80px;text-align:center">Page ${page} of ${pages}</span>
+      <button ${reqOffset + size >= total ? 'disabled' : ''}
+              onclick="reqOffset+=${size};loadReqs()">Next</button>
+      <button ${reqOffset + size >= total ? 'disabled' : ''}
+              onclick="reqOffset=${(pages-1)*size};loadReqs()">Last</button>
+    </span>
+  `;
+
+  // populate model dropdown if first time
+  const mSel = document.getElementById('reqModel');
+  if (mSel && mSel.children.length <= 1) {
+    const root = await fetch('../v1/models', { credentials: 'include' }).then(r => r.json()).catch(() => ({ data: [] }));
+    const models = (root.data || []).map(m => m.id);
+    for (const m of models) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      if (m === model) opt.selected = true;
+      mSel.appendChild(opt);
+    }
+  }
+}
+
+// ─── Runtime settings ───────────────────────────────────────────────────────
+
+const RT_GROUPS = [
+  {
+    title: 'Traffic Control · Independent counter per IP slot',
+    fields: [
+      { k: 'per_ip_concurrent', label: 'Concurrency', type: 'int', min: 0, max: 1000,
+        hint: 'Max inflight requests at any moment; 0 = unlimited' },
+      { k: 'per_ip_rpm', label: 'RPM', type: 'int', min: 0, max: 10000,
+        hint: 'Rolling 60s window limit; 0 = unlimited' },
+      { k: 'per_ip_rph', label: 'RPH', type: 'int', min: 0, max: 100000,
+        hint: 'Rolling 1-hour window limit; 0 = unlimited. Empirical blocks happen around 80–180 req/hr per egress; default is lower bound 80. Can be set much higher if paced gently (e.g. 10 req/min for 800 req without block)' },
+    ],
+  },
+  {
+    title: 'Retries & Timeouts',
+    fields: [
+      { k: 'retry_attempts', label: 'Retry Attempts', type: 'int', min: 1, max: 10,
+        hint: 'Includes initial attempt; no retry once stream output has started' },
+      { k: 'retry_delay_sec', label: 'Retry Delay (s)', type: 'int', min: 0, max: 60 },
+      { k: 'request_timeout_sec', label: 'Upstream Timeout (s)', type: 'int', min: 5, max: 600 },
+    ],
+  },
+  {
+    title: 'Request Behavior',
+    fields: [
+      { k: 'default_model', label: 'Default Model', type: 'select',
+        hint: 'Fallback model when client request does not specify one' },
+      { k: 'max_prompt_bytes', label: 'Max Prompt Bytes', type: 'int', min: 0, max: 10000000,
+        hint: 'Returns 400 context_length_exceeded if exceeded. Upstream limit is ~130K UTF-8 bytes. Without check, upstream silently truncates from end, dropping newest message. 0 = unlimited' },
+      { k: 'impersonate', label: 'TLS Fingerprint', type: 'text',
+        hint: 'chrome_146 / chrome_144 / firefox_147 / safari_16_0 …' },
+      { k: 'gemini_bl', label: 'Gemini bl Version', type: 'text',
+        hint: 'Upstream frontend version string. Check here if large-scale failures occur' },
+      { k: 'gemini_bl_auto', label: 'Auto-follow bl Version', type: 'bool',
+        hint: 'Pulls latest version from /app every 6 hours and updates automatically' },
+      { k: 'auto_delete_conversation', label: 'Auto-delete Web Conversation', type: 'bool',
+        hint: 'Deletes conversation from gemini.google.com after response completes. Logged-in only, asynchronous best-effort' },
+      { k: 'temporary_chat', label: 'Temporary Chat', type: 'bool',
+        hint: 'Uses native web temporary chat (inner[45]=1); leaves no conversation history in account, bypassing need for deletion requests. Ignored if multi-turn is enabled' },
+      { k: 'multi_turn', label: 'Server Multi-turn Resume', type: 'bool',
+        hint: 'Uses Gemini native conversation_id: recognizes history prefix and only sends newest turn, keeping history server-side. Off by default' },
+      { k: 'anon_first', label: 'Anonymous First', type: 'bool',
+        hint: 'Routes plain-text/non-thinking/non-tool requests anonymously without consuming cookie accounts. Uses accounts only for 3.1 Pro, thinking, vision, or files' },
+    ],
+  },
+  {
+    title: 'Proxy & Cookie Fallbacks',
+    fields: [
+      { k: 'proxy_cooldown_min', label: 'Circuit Breaker Cooldown (min)', type: 'int', min: 0, max: 10080,
+        hint: 'How long a proxy rests after 5 consecutive failures before re-entering pool. Empirical unban window is 106–121 min (default 120); 0 = never auto-recover' },
+      { k: 'fallback_direct', label: 'Fallback to Direct on No Proxy', type: 'bool',
+        hint: 'Off: returns 429 immediately to protect host IP (default). On: prioritizes availability by using host IP' },
+      { k: 'fallback_anon', label: 'Fallback to Anonymous on Cookie Failure', type: 'bool',
+        hint: 'Off: returns error immediately so bad cookie is noticed (default). On: silently downgrades, but 3.1 Pro becomes 3.5 Flash-Lite without reasoning' },
+    ],
+  },
+  {
+    title: 'Data & Logging',
+    fields: [
+      { k: 'retention_days', label: 'Log Retention (days)', type: 'int', min: 1, max: 3650,
+        hint: 'Deletes detailed request records after retention period; aggregated statistics are kept permanently' },
+      { k: 'log_requests', label: 'Print Request Logs', type: 'bool' },
+    ],
+  },
+];
+
+let rtCfgCache = null, rtModels = [];
+
+async function loadRtCfg() {
+  const form = document.getElementById('rtForm');
+  if (!form) return;
+  const d = await api('api/config');
+  rtCfgCache = d.config || {};
+  rtModels = d.models || [];
+
+  form.innerHTML = RT_GROUPS.map(g => `
+    <div class="rt-group">
+      <div class="rt-group-title">${escapeHtml(g.title)}</div>
+      <div class="rt-grid">
+        ${g.fields.map(f => {
+          const val = rtCfgCache[f.k];
+          if (f.type === 'bool') {
+            return `
+              <div class="rt-field checkbox">
+                <input id="rt_${f.k}" type="checkbox" ${val ? 'checked' : ''} />
+                <label for="rt_${f.k}">${escapeHtml(f.label)}</label>
+                ${f.hint ? `<div class="hint" style="grid-column:1/-1;">${f.hint}</div>` : ''}
+              </div>`;
+          }
+          if (f.type === 'select') {
+            const opts = rtModels.map(m =>
+              `<option value="${escapeHtml(m)}" ${m === val ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
+            return `
+              <div class="rt-field">
+                <label for="rt_${f.k}">${escapeHtml(f.label)}</label>
+                <select id="rt_${f.k}">${opts}</select>
+                ${f.hint ? `<div class="hint">${f.hint}</div>` : ''}
+              </div>`;
+          }
+          const isNum = f.type === 'int';
+          return `
+            <div class="rt-field">
+              <label for="rt_${f.k}">${escapeHtml(f.label)}</label>
+              <input id="rt_${f.k}" type="${isNum ? 'number' : 'text'}"
+                     ${isNum && f.min != null ? `min="${f.min}"` : ''}
+                     ${isNum && f.max != null ? `max="${f.max}"` : ''}
+                     value="${val != null ? escapeHtml(String(val)) : ''}" />
+              ${f.hint ? `<div class="hint">${f.hint}</div>` : ''}
+            </div>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+
+  // deployment info table
+  const dep = document.getElementById('deployInfo');
+  if (dep && d.deployment) {
+    const rows = [
+      ['Listen', `${escapeHtml(d.deployment.host || '')}:${d.deployment.port}`, 'compose ports + --port'],
+      ['Database', escapeHtml(d.deployment.db_path || ''), 'compose volumes + --db'],
+      ['Cookie Seed File', d.deployment.cookie_file ? escapeHtml(d.deployment.cookie_file) : '<span class="badge muted">Not configured</span>',
+       'Imports file into Cookie Pool on startup; managed via Cookie Pool page thereafter'],
+      ['Panel Auth', d.deployment.admin_auth ? '<span class="badge ok">Enabled</span>'
+                                             : '<span class="badge fail">No token set</span>', 'compose ADMIN_TOKEN'],
+      ['API Key', d.deployment.api_key_locked ? '<span class="badge">Deploy-locked</span>'
+                                               : '<span class="badge ok">Panel-rotatable</span>', 'compose API_KEY'],
+    ];
+    dep.innerHTML = `
+      <div class="kv">
+        ${rows.map(([k, v, hint]) => `
+          <div style="color:var(--text-2);font-weight:500;">${k}</div>
+          <div>${v}${hint ? `<div class="hint">${hint}</div>` : ''}</div>`).join('')}
+      </div>`;
+  }
+}
+
+async function saveRtCfg() {
+  const msg = document.getElementById('rtMsg');
+  const payload = {};
+  for (const g of RT_GROUPS) {
+    for (const f of g.fields) {
+      const el = document.getElementById('rt_' + f.k);
+      if (!el) continue;
+      if (f.type === 'bool') payload[f.k] = el.checked;
+      else if (f.type === 'int') payload[f.k] = parseInt(el.value, 10) || 0;
+      else payload[f.k] = el.value.trim();
+    }
+  }
+  msg.textContent = 'Saving…'; msg.style.color = 'var(--muted)';
+  try {
+    const res = await fetch('api/config', {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      msg.textContent = 'Save failed: ' + (data.error || res.status);
+      msg.style.color = 'var(--fail)';
+      return;
+    }
+    rtCfgCache = data.config || payload;
+    msg.textContent = 'Saved and applied';
+    msg.style.color = 'var(--ok)';
+    setTimeout(() => { if (msg.textContent === 'Saved and applied') msg.textContent = ''; }, 3000);
+  } catch (e) {
+    msg.textContent = 'Save failed: ' + e.message;
+    msg.style.color = 'var(--fail)';
+  }
+}
+
+const ERR_BADGE = {
+  upstream_rejected: 'muted', rate_limited_local: 'muted', bad_request: 'muted',
+  blocked_sorry: 'fail', upstream_429: 'fail', upstream_http_error: 'fail', network: 'fail',
+};
+const ERR_DESC = {
+  upstream_rejected: 'Upstream returned 200 without content frames. Empirically a transient rejection that heals within minutes; retry without adjusting rate limits.',
+  rate_limited_local: 'Blocked by local rate limiter (slots full). Add proxies in Proxy Pool for more capacity.',
+  blocked_sorry: 'Redirected to sorry/index by Google; egress IP is blacklisted. Switch proxy; lifts in 6–24 hours.',
+  upstream_429: 'Upstream returned 429 directly. Egress IP suspect; switch proxy.',
+  upstream_http_error: 'Upstream returned non-200 HTTP status; possible protocol change or temporary outage.',
+  network: 'Connection, DNS, or TLS handshake failed. Check proxy availability — low-quality proxy providers often fail repeatedly.',
+  bad_request: 'Client request invalid (unknown model name or unsupported parameters passed).',
+};
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function upstreamCell(r) {
+  const reqM = r.model || '';
+  const upM = r.upstream_model || '';
+  if (!upM || upM === reqM) return '—';
+  return `<span class="badge warn" title="Actual upstream model used differs from requested model">${escapeHtml(upM)}</span>`;
+}
+
+// ─── Proxy management ───────────────────────────────────────────────────────
+
+async function addProxy() {
+  const data = await modalForm({
+    title: 'Add Proxy',
+    desc: 'One proxy = one independent IP slot with its own concurrency, RPM, and RPH quotas.',
+    fields: [
+      { name: 'name', label: 'Name', placeholder: 'vps-uk-1', required: true,
+        hint: 'Any label to identify it in the admin panel' },
+      { name: 'url', label: 'Proxy URL', placeholder: 'http://user:pass@1.2.3.4:8080', required: true,
+        hint: 'Supports http://, https://, and socks5:// protocols' },
+    ],
+    submitText: 'Add Proxy',
+  });
+  if (!data) return;
+  const r = await fetch('api/proxies', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const j = await r.json();
+  if (j.error) return flash('Failed to add: ' + j.error);
+  flash('Proxy added');
+  await refreshPage();
+}
+
+async function delProxy(id) {
+  const ok = await modalConfirm({
+    title: 'Delete Proxy',
+    desc: `Are you sure you want to delete proxy #${id}? This action cannot be undone.`,
+    confirmText: 'Delete', danger: true,
+  });
+  if (!ok) return;
+  const r = await fetch(`api/proxies/${id}`, { method: 'DELETE', credentials: 'include' });
+  const j = await r.json();
+  if (j.error) return flash('Failed to delete: ' + j.error);
+  flash('Deleted');
+  await refreshPage();
+}
+
+async function toggleProxy(id) {
+  await fetch(`api/proxies/${id}/toggle`, { method: 'POST', credentials: 'include' });
+  await refreshPage();
+}
+async function resetProxy(id) {
+  await fetch(`api/proxies/${id}/reset`, { method: 'POST', credentials: 'include' });
+  flash('Failure count reset');
+  await refreshPage();
+}
+
+// ─── Cookie Pool management ────────────────────────────────────────────────
+
+const COOKIE_KEYS = [
+  { k: '__Secure-1PSID', hint: 'Main session' },
+  { k: 'SAPISID', req: true, hint: 'Used to calculate auth header; anonymous if missing' },
+  { k: '__Secure-1PSIDTS', hint: 'Expires in ~30 min; automatically renewed by keep-alive' },
+  { k: 'SID', hint: 'Legacy session' },
+  { k: 'HSID', hint: 'Security signature' },
+  { k: 'SSID', hint: 'Security signature' },
+  { k: 'APISID', hint: 'Google API auth' },
+];
+
+function parseCookieStr(s) {
+  const out = {};
+  (s || '').split(';').forEach(p => {
+    const t = p.trim();
+    const i = t.indexOf('=');
+    if (i > 0) out[t.slice(0, i)] = t.slice(i + 1);
+  });
+  return out;
+}
+
+function joinCookieObj(obj) {
+  return Object.entries(obj).filter(([, v]) => (v || '').trim())
+    .map(([k, v]) => `${k}=${String(v).trim()}`).join('; ');
+}
+
+async function addCookieAcct() {
+  let extras = {};
+
+  const data = await buildModal({
+    title: 'Import Cookie',
+    wide: true,
+    desc: 'In browser: F12 → Application → Cookies → select <code>https://gemini.google.com</code>. Paste full string or fill individual fields; toggle anytime without losing data.',
+    bodyHTML: `
+      <div class="field">
+        <label>Label</label>
+        <input data-name="label" type="text" placeholder="e.g. account email, optional" />
+        <div class="hint">Only used to identify account in panel; not sent with requests.</div>
+      </div>
+
+      <div class="segbar" data-role="seg">
+        <button type="button" data-mode="raw" class="on">Paste Full String (Recommended)</button>
+        <button type="button" data-mode="fields">Fill Individually</button>
+      </div>
+
+      <div data-pane="fields" style="display:none;">
+        <div class="ck-grid">
+          ${COOKIE_KEYS.map(c => `
+            <div class="field${c.k.length > 12 ? ' wide' : ''}">
+              <label>${escapeHtml(c.k)}${c.req ? ' <span class="req">*</span>' : ''}</label>
+              <input data-ck="${escapeHtml(c.k)}" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="${escapeHtml(c.hint || '')}" />
+            </div>`).join('')}
+        </div>
+        <div class="ck-extra" data-role="extras"></div>
+        <div class="ck-extra">The first 3 are the minimal set for authentication; the remaining 4 ensure greater stability.
+        Browsers send <b>over 20 cookies</b> per request. Since we forward the entire string verbatim
+        (only parsing SAPISID for auth calculation),
+        <b>pasting the full string mimics a real browser much more accurately</b>. Field mode is meant for when you only have partial items.</div>
+      </div>
+
+      <div data-pane="raw">
+        <div class="field">
+          <textarea data-name="cookie" rows="6" spellcheck="false"
+            placeholder="SID=...; HSID=...; SSID=...; APISID=...; SAPISID=...; __Secure-1PSID=...; __Secure-1PSIDTS=..."></textarea>
+          <div class="hint">Paste the full semicolon-separated cookie line. Must contain at least SAPISID and __Secure-1PSID.
+          Recommended: export from Firefox (modern Chrome binds sessions to device, preventing external renewal). Select-all and copy in DevTools;
+          extra cookies are retained — the fuller the string, the closer to a real browser.</div>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:14px;">
+        <label>Note</label>
+        <input data-name="note" type="text" placeholder="Optional" />
+      </div>`,
+    submitText: 'Import',
+    onReady: (overlay) => {
+      const $ = (s) => overlay.querySelector(s);
+      const inputs = () => [...overlay.querySelectorAll('[data-ck]')];
+      const ta = $('[data-name=cookie]');
+
+      const fieldsToRaw = () => {
+        const obj = {};
+        inputs().forEach(el => { if (el.value.trim()) obj[el.dataset.ck] = el.value.trim(); });
+        ta.value = joinCookieObj({ ...obj, ...extras });
+      };
+      const rawToFields = () => {
+        const obj = parseCookieStr(ta.value);
+        const known = new Set(COOKIE_KEYS.map(c => c.k));
+        extras = {};
+        Object.entries(obj).forEach(([k, v]) => { if (!known.has(k)) extras[k] = v; });
+        inputs().forEach(el => { el.value = obj[el.dataset.ck] || ''; });
+        const n = Object.keys(extras).length;
+        $('[data-role=extras]').textContent = n
+          ? `${n} additional items not listed above will also be retained (${Object.keys(extras).slice(0, 4).join(', ')}${n > 4 ? ' …' : ''}).`
+          : '';
+      };
+
+      overlay.querySelectorAll('[data-role=seg] button').forEach(btn => {
+        btn.onclick = () => {
+          const mode = btn.dataset.mode;
+          if (mode === 'raw') fieldsToRaw(); else rawToFields();
+          overlay.querySelectorAll('[data-role=seg] button')
+            .forEach(b => b.classList.toggle('on', b === btn));
+          $('[data-pane=fields]').style.display = mode === 'fields' ? '' : 'none';
+          $('[data-pane=raw]').style.display = mode === 'raw' ? '' : 'none';
+        };
+      });
+      inputs().forEach(el => el.addEventListener('paste', (ev) => {
+        const txt = (ev.clipboardData || window.clipboardData).getData('text') || '';
+        if (!txt.includes(';') || !txt.includes('=')) return;
+        ev.preventDefault();
+        ta.value = txt.trim();
+        rawToFields();
+      }));
+    },
+    onSubmit: (overlay) => {
+      const label = (overlay.querySelector('[data-name=label]').value || '').trim();
+      const note = (overlay.querySelector('[data-name=note]').value || '').trim();
+      const isRaw = overlay.querySelector('[data-role=seg] button.on').dataset.mode === 'raw';
+      let cookie;
+      if (isRaw) {
+        cookie = (overlay.querySelector('[data-name=cookie]').value || '').trim();
+      } else {
+        const obj = {};
+        overlay.querySelectorAll('[data-ck]').forEach(el => {
+          if (el.value.trim()) obj[el.dataset.ck] = el.value.trim();
+        });
+        cookie = joinCookieObj(obj);
+      }
+      if (!cookie) return { error: 'Cookie cannot be empty' };
+      if (!cookie.includes('SAPISID')) return { error: 'Missing SAPISID in cookie; likely incomplete copy' };
+      return { label, cookie, note };
+    },
+  });
+  if (!data) return;
+  const r = await fetch('api/cookies', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const j = await r.json();
+  if (j.error) return flash('Import failed: ' + j.error);
+  flash('Cookie account imported #' + j.id);
+  await refreshPage();
+}
+
+async function editCookieAcct(id, label, note) {
+  const data = await modalForm({
+    title: 'Edit Cookie #' + id,
+    desc: 'Updates only label and note without touching the cookie itself. To replace cookie, delete and re-import.',
+    fields: [
+      { name: 'label', label: 'Label', value: label || '', placeholder: 'Account email' },
+      { name: 'note', label: 'Note', value: note || '', placeholder: 'Optional' },
+    ],
+    submitText: 'Save',
+  });
+  if (!data) return;
+  const r = await fetch(`api/cookies/${id}`, {
+    method: 'PUT', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const j = await r.json();
+  if (j.error) return flash('Save failed: ' + j.error);
+  flash('Saved');
+  await refreshPage();
+}
+
+async function checkCookieAcct(id, btn) {
+  btn.textContent = 'Checking…'; btn.disabled = true;
+  try {
+    const r = await fetch(`api/cookies/${id}/check`, { credentials: 'include' });
+    const d = await r.json();
+    if (!r.ok) { flash('Check failed: ' + (d.error || r.status)); return; }
+    const via = d.proxy_name ? `, via ${d.proxy_name}` : '';
+    flash(`#${id} ${d.detail}${via} (${d.took_ms} ms)`);
+    await refreshPage();
+  } catch (e) {
+    flash('Check failed: ' + e.message);
+  } finally {
+    btn.textContent = 'Check'; btn.disabled = false;
+  }
+}
+
+async function rotateCookieAcct(id, btn) {
+  btn.textContent = 'Keep-alive in progress…'; btn.disabled = true;
+  try {
+    const r = await fetch(`api/cookies/${id}/rotate`, { method: 'POST', credentials: 'include' });
+    const d = await r.json();
+    if (!r.ok) { flash('Keep-alive failed: ' + (d.error || r.status)); return; }
+    flash(`#${id} ${d.detail}` +
+      (d.next_sec ? `, server recommends re-check in ${d.next_sec}s` : ''));
+    await refreshPage();
+  } catch (e) {
+    flash('Keep-alive failed: ' + e.message);
+  } finally {
+    btn.textContent = 'Keep-Alive'; btn.disabled = false;
+  }
+}
+
+async function toggleCookieAcct(id) {
+  await fetch(`api/cookies/${id}/toggle`, { method: 'POST', credentials: 'include' });
+  await refreshPage();
+}
+async function delCookieAcct(id) {
+  const ok = await modalConfirm({
+    title: 'Delete Cookie',
+    desc: `Are you sure you want to delete account #${id}? This action cannot be undone.`,
+    confirmText: 'Delete', danger: true,
+  });
+  if (!ok) return;
+  const r = await fetch(`api/cookies/${id}`, { method: 'DELETE', credentials: 'include' });
+  const j = await r.json();
+  if (j.error) return flash('Failed to delete: ' + j.error);
+  flash('Deleted');
+  await refreshPage();
+}
+
+// ─── Auth & Utilities ───────────────────────────────────────────────────────
+
+async function doLogout() {
+  const ok = await modalConfirm({
+    title: 'Log Out',
+    desc: 'You will need to re-enter the admin token to log back in. The background service and API remain unaffected.',
+    confirmText: 'Log Out',
+  });
+  if (!ok) return;
+  await fetch('api/logout', { method: 'POST', credentials: 'include' });
+  renderLogin();
+}
+
+async function populateTestProxies() {
+  const sel = document.getElementById('testProxy');
+  if (!sel) return;
+  const data = await api('api/proxies');
+  const items = data.items || [];
+  sel.querySelectorAll('option[data-dyn]').forEach(o => o.remove());
+  for (const p of items) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.dataset.dyn = '1';
+    opt.text = 'Proxy: ' + p.name;
+    sel.appendChild(opt);
+  }
+}
+
+async function runTest() {
+  const box = document.getElementById('testResult');
+  const sel = document.getElementById('testProxy');
+  const pVal = sel ? sel.value : '';
+  box.style.display = 'block';
+  box.innerHTML = '<div class="empty">Testing… (up to 30s)</div>';
+  try {
+    const q = pVal !== '' ? `?proxy_id=${encodeURIComponent(pVal)}` : '';
+    const r = await api('api/test' + q);
+    const badges = {
+      success: '<span class="badge ok">Success</span>',
+      blocked_sorry: '<span class="badge fail">Blocked (302)</span>',
+      rate_limited: '<span class="badge fail">Rate-Limited (429)</span>',
+      upstream_error: '<span class="badge fail">Upstream Error</span>',
+      network_error: '<span class="badge fail">Network Error</span>',
+    };
+    const statusBadge = badges[r.status] || `<span class="badge">${r.status}</span>`;
+    box.innerHTML = `
+      <div class="kv" style="margin:0; font-size:12.5px;">
+        <div style="color: var(--muted)">Result</div><div>${statusBadge}</div>
+        <div style="color: var(--muted)">HTTP Code</div><div><code>${r.http_code || '-'}</code></div>
+        <div style="color: var(--muted)">Total Time</div><div><code>${r.total_ms} ms</code></div>
+        <div style="color: var(--muted)">IP Slot Used</div><div>${r.proxy_name || '-'}${r.use_direct ? '' : (r.proxy_id ? ' (Proxy #' + r.proxy_id + ')' : '')}</div>
+        <div style="color: var(--muted)">Fingerprint</div><div><code>${r.impersonate}</code></div>
+        ${r.response_text ? `<div style="color: var(--muted)">Response Content</div><div class="pre">${escapeHtml(r.response_text)}</div>` : ''}
+        <div style="color: var(--muted)">Diagnostics</div><div style="line-height: 1.6;">${escapeHtml(r.diagnostic)}</div>
+        ${r.upstream_snip && !r.ok ? `<div style="color: var(--muted)">Upstream Response Snippet</div>
+          <div class="pre" style="color:var(--muted)">${escapeHtml(r.upstream_snip)}</div>` : ''}
+      </div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="err">Test request failed: ${e.message}</div>`;
+  }
+}
+
+function toggleKeyVis() {
+  const el = document.getElementById('keyDisplay');
+  if (!el) return;
+  el.type = el.type === 'password' ? 'text' : 'password';
+  const btn = event?.target;
+  if (btn) btn.textContent = el.type === 'password' ? 'Show' : 'Hide';
+}
+
+async function copyKey() {
+  const el = document.getElementById('keyDisplay');
+  if (!el) return;
+  try {
+    await navigator.clipboard.writeText(el.value);
+    flash('Copied to clipboard');
+  } catch (e) {
+    el.type = 'text'; el.select(); document.execCommand('copy');
+    flash('Copied (fallback mode)');
+  }
+}
+
+async function rotateKey() {
+  const ok = await modalConfirm({
+    title: 'Generate New Key',
+    desc: 'Existing clients will be unable to connect until updated with the new key. Continue?',
+    confirmText: 'Generate New Key',
+  });
+  if (!ok) return;
+  const r = await fetch('api/apikey/rotate', { method: 'POST', credentials: 'include' });
+  const j = await r.json();
+  if (j.key) {
+    flash('New key generated');
+    await refreshPage();
+  } else {
+    flash('Error: ' + (j.error || 'Failed to generate key'));
+  }
+}
+
+async function customKey() {
+  const k = await modalPrompt({
+    title: 'Set Custom API Key',
+    desc: 'At least 20 characters. All clients must switch to the new key after change.',
+    label: 'New Key',
+    placeholder: 'sk-...',
+  });
+  if (k == null) return;
+  if (k.length < 20) return flash('Key must be at least 20 characters');
+  const r = await fetch('api/apikey', {
+    method: 'PUT', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: k }),
+  });
+  const j = await r.json();
+  if (j.ok) { flash('Key updated'); await refreshPage(); }
+  else flash('Error: ' + (j.error || 'Unknown error'));
+}
+
+function flash(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#1F1F1F;color:#fff;'
+    + 'padding:12px 20px;border-radius:12px;font-size:13px;z-index:9999;'
+    + 'box-shadow:0 4px 16px rgba(60,64,67,.3);';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1800);
+}
+
+// ─── Modals ─────────────────────────────────────────────────────────────────
+
+function buildModal({ title, desc, bodyHTML, submitText, danger, wide, allowEnter, onReady, onSubmit }) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal${wide ? ' wide' : ''}" role="dialog" aria-modal="true">
+        ${title ? `<h3>${escapeHtml(title)}</h3>` : ''}
+        ${desc ? `<div class="desc">${desc}</div>` : ''}
+        <div class="modal-err" style="display:none;"></div>
+        <div class="modal-body">${bodyHTML || ''}</div>
+        <div class="actions">
+          <button class="btn muted" data-act="cancel">Cancel</button>
+          <button class="btn ${danger ? 'danger' : ''}" data-act="ok">${escapeHtml(submitText || 'OK')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    if (onReady) onReady(overlay);
+
+    const finish = (val) => {
+      overlay.remove();
+      document.removeEventListener('keydown', keyHandler);
+      resolve(val);
+    };
+    const showErr = (msg) => {
+      const e = overlay.querySelector('.modal-err');
+      e.textContent = msg;
+      e.style.display = msg ? 'block' : 'none';
+      e.className = 'modal-err err';
+    };
+
+    overlay.querySelector('[data-act=cancel]').onclick = () => finish(null);
+    overlay.querySelector('[data-act=ok]').onclick = async () => {
+      const result = onSubmit ? await onSubmit(overlay) : true;
+      if (result === false) return; // validation failed
+      if (result && typeof result === 'object' && result.error) { showErr(result.error); return; }
+      finish(result === true ? true : result);
+    };
+    overlay.onclick = (e) => { if (e.target === overlay) finish(null); };
+
+    const keyHandler = (e) => {
+      if (e.key === 'Escape') finish(null);
+      if (e.key === 'Enter' && allowEnter && document.activeElement.tagName !== 'TEXTAREA') {
+        overlay.querySelector('[data-act=ok]').click();
+      }
+    };
+    document.addEventListener('keydown', keyHandler);
+
+    setTimeout(() => {
+      const first = overlay.querySelector('input,textarea');
+      if (first) first.focus();
+    }, 50);
+  });
+}
+
+function modalConfirm({ title, desc, confirmText = 'OK', danger = false }) {
+  return buildModal({
+    title, desc, bodyHTML: '', submitText: confirmText, danger, allowEnter: true,
+    onSubmit: () => true,
+  });
+}
+
+function modalPrompt({ title, desc, label, placeholder = '', value = '', hint, password = false }) {
+  return buildModal({
+    title, desc, allowEnter: true,
+    bodyHTML: `<div class="field">
+      ${label ? `<label>${escapeHtml(label)}</label>` : ''}
+      <input type="${password ? 'password' : 'text'}" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}" />
+      ${hint ? `<div class="hint">${hint}</div>` : ''}
+    </div>`,
+    submitText: 'OK',
+    onSubmit: (overlay) => {
+      const v = overlay.querySelector('input').value;
+      if (!v) return { error: 'Cannot be empty' };
+      return v;
+    },
+  });
+}
+
+function modalForm({ title, desc, fields, submitText = 'Submit' }) {
+  const html = fields.map(f => `
+    <div class="field">
+      <label>${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>
+      <input data-name="${escapeHtml(f.name)}" type="${f.password ? 'password' : 'text'}"
+             placeholder="${escapeHtml(f.placeholder || '')}"
+             value="${escapeHtml(f.value || '')}" />
+      ${f.hint ? `<div class="hint">${f.hint}</div>` : ''}
+    </div>`).join('');
+  return buildModal({
+    title, desc, bodyHTML: html, submitText, allowEnter: true,
+    onSubmit: (overlay) => {
+      const out = {};
+      for (const f of fields) {
+        const el = overlay.querySelector(`[data-name="${f.name}"]`);
+        const v = (el.value || '').trim();
+        if (f.required && !v) return { error: `"${f.label}" is required` };
+        if (f.minLength && v.length < f.minLength) return { error: `"${f.label}" must be at least ${f.minLength} characters` };
+        out[f.name] = v;
+      }
+      return out;
+    },
+  });
+}
+
+// ─── Routing / Shell ────────────────────────────────────────────────────────
+
+let currentPage = null;
+let pageSeq = 0;
+
+async function switchPage(name, force = false) {
+  if (!force && name === currentPage) return;
+  const seq = ++pageSeq;
+  currentPage = name;
+
+  document.querySelectorAll('nav button').forEach(b =>
+    b.classList.toggle('active', b.dataset.page === name));
+  const titleEl = document.getElementById('pageTitle');
+  if (titleEl) titleEl.textContent = PAGE_TITLES[name] || name;
+  const main = document.getElementById('main');
+
+  const slow = setTimeout(() => {
+    if (seq === pageSeq) main.innerHTML = '<div class="empty">Loading…</div>';
+  }, 200);
+  let html;
+  try {
+    html = await pages[name]();
+  } catch (e) {
+    clearTimeout(slow);
+    if (seq === pageSeq) main.innerHTML = '<div class="empty">' + e.message + '</div>';
+    return;
+  }
+  clearTimeout(slow);
+  if (seq !== pageSeq) return;
+  main.innerHTML = html;
+
+  if (name === 'dashboard') {
+    await loadChart('24h');
+    document.getElementById('rangeSel').onchange = (e) => loadChart(e.target.value);
+    await populateTestProxies();
+  }
+  if (name === 'requests') {
+    reqOffset = 0;
+    document.getElementById('reqStatus').onchange = () => { reqOffset = 0; loadReqs(); };
+    document.getElementById('reqModel').onchange = () => { reqOffset = 0; loadReqs(); };
+    document.getElementById('reqSize').onchange = () => { reqOffset = 0; loadReqs(); };
+    await loadReqs();
+  }
+  if (name === 'settings') {
+    await loadRtCfg();
+  }
+}
+
+function refreshPage() { return switchPage(currentPage, true); }
+
+// ─── User Management Actions ────────────────────────────────────────────────
+async function openNewUserModal() {
+  const res = await modalPromptMulti({
+    title: 'Create New User',
+    desc: 'The user will receive an isolated cookie pool and personal API key.',
+    submitText: 'Create User',
+    fields: [
+      { name: 'username', label: 'Username', placeholder: 'e.g. user_alice', required: true, minLength: 3 },
+      { name: 'password', label: 'Password', type: 'password', password: true, placeholder: 'Min 6 characters', required: true, minLength: 6 },
+      { name: 'role', label: 'Role (user or admin)', placeholder: 'user', value: 'user' },
+    ],
+  });
+  if (!res) return;
+  try {
+    await api('api/users', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: res.username,
+        password: res.password,
+        role: res.role === 'admin' ? 'admin' : 'user',
+      }),
+    });
+    flash('User created successfully');
+    await refreshPage();
+  } catch (e) {
+    alert(e.message || 'Failed to create user');
+  }
+}
+
+async function toggleUserStatus(id, currentStatus) {
+  const next = currentStatus === 'active' ? 'disabled' : 'active';
+  try {
+    await api(`api/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: next }),
+    });
+    flash(`User ${next}`);
+    await refreshPage();
+  } catch (e) {
+    alert(e.message || 'Failed to update user');
+  }
+}
+
+async function deleteUser(id) {
+  const ok = await modalConfirm({
+    title: 'Delete User',
+    desc: 'Are you sure you want to delete this user? Their personal API key and cookies in the pool will be permanently removed.',
+    confirmText: 'Delete User',
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    await api(`api/users/${id}`, { method: 'DELETE' });
+    flash('User deleted');
+    await refreshPage();
+  } catch (e) {
+    alert(e.message || 'Failed to delete user');
+  }
+}
+
+const ICONS = {
+  dashboard: '<path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>',
+  requests: '<path d="M7 5h14v2H7V5zm0 6h14v2H7v-2zm0 6h14v2H7v-2zM3 4.5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zm0 6a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zm0 6a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z"/>',
+  proxies: '<path d="M12 2a2.5 2.5 0 011 4.79V9h4a2 2 0 012 2v1.21a2.5 2.5 0 11-2 0V11h-4v1.21a2.5 2.5 0 11-2 0V11H7v1.21a2.5 2.5 0 11-2 0V11a2 2 0 012-2h4V6.79A2.5 2.5 0 0112 2z"/>',
+  settings: '<path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>',
+  cookies: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 3a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM8 13a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm6 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>',
+  users: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>',
+  menu: '<path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>',
+  logout: '<path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4a2 2 0 00-2 2v14a2 2 0 002 2h8v-2H4V5z"/>',
+};
+
+function getNav() {
+  if (currentUser && currentUser.role === 'admin') {
+    return [
+      ['dashboard', 'Overview'],
+      ['requests', 'Requests'],
+      ['proxies', 'Proxy Pool'],
+      ['cookies', 'Cookie Pool'],
+      ['users', 'Users'],
+      ['settings', 'Settings'],
+    ];
+  }
+  return [
+    ['dashboard', 'Overview'],
+    ['requests', 'My Requests'],
+    ['cookies', 'My Cookies'],
+    ['settings', 'Settings'],
+  ];
+}
+
+const PAGE_TITLES = {
+  dashboard: 'Overview', requests: 'Requests', proxies: 'Proxy Pool', cookies: 'Cookie Pool', users: 'User Management', settings: 'Settings',
+};
+
+function toggleSidebar() {
+  const el = document.querySelector('.sidebar');
+  el.classList.toggle('collapsed');
+  try { localStorage.setItem('sbCollapsed', el.classList.contains('collapsed') ? '1' : ''); } catch (e) {}
+}
+
+function renderShell() {
+  const collapsed = (() => { try { return localStorage.getItem('sbCollapsed') === '1'; } catch (e) { return false; } })();
+  const navList = getNav();
+  document.getElementById('app').innerHTML = `
+    <aside class="sidebar${collapsed ? ' collapsed' : ''}">
+      <div class="side-top">
+        <button class="icon-btn" onclick="toggleSidebar()" title="Collapse / Expand" aria-label="Collapse or expand sidebar">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${ICONS.menu}</svg>
+        </button>
+        <span class="brand-text"><span class="spark"></span>gemini-web2api</span>
+      </div>
+      <nav>
+        ${navList.map(([k, label]) => `
+          <button data-page="${k}" onclick="switchPage('${k}')" title="${label}">
+            <svg viewBox="0 0 24 24">${ICONS[k]}</svg>
+            <span class="nav-label">${label}</span>
+          </button>`).join('')}
+      </nav>
+      <div class="side-foot">
+        <div id="sideStat"></div>
+        <div class="sf-sep"></div>
+        <button class="logout-btn" onclick="doLogout()" title="Log Out">
+          <svg viewBox="0 0 24 24">${ICONS.logout}</svg>
+          <span class="nav-label">Log Out</span>
+        </button>
+      </div>
+    </aside>
+    <div class="content">
+      <div class="topbar">
+        <h1 class="page-title" id="pageTitle">Overview</h1>
+        <div class="topbar-right">
+          ${currentUser ? `
+            <div class="user-badge">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="var(--g-blue)">${ICONS.users}</svg>
+              <b>${escapeHtml(currentUser.username)}</b>
+              <span class="badge ${currentUser.role === 'admin' ? 'purple' : 'blue'}">${currentUser.role}</span>
+            </div>
+          ` : ''}
+          <span class="dot" id="healthDot"></span>
+          <span class="muted" id="healthText">Running</span>
+        </div>
+      </div>
+      <main id="main"></main>
+    </div>
+  `;
+  switchPage('dashboard');
+  loadSideStat();
+}
+
+async function loadSideStat() {
+  const box = document.getElementById('sideStat');
+  if (!box) return;
+  try {
+    const [root, ck, usage] = await Promise.all([
+      fetch('../', { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null).catch(() => null),
+      api('api/cookies').catch(() => null),
+      api('api/usage').catch(() => null),
+    ]);
+    const dot = document.getElementById('healthDot');
+    const ht = document.getElementById('healthText');
+    const isRunning = !!(root && root.status === 'ok') || !!currentUser;
+    if (dot) dot.className = 'dot' + (isRunning ? '' : ' bad');
+    if (ht) ht.textContent = isRunning ? 'Running' : 'Disconnected';
+
+    const rows = [
+      ['Version', root && root.version ? 'v' + root.version : '—'],
+      ['Models', root && root.models ? root.models.length + ' total' : '—'],
+      ['Cookies', ck && ck.items && ck.items.length ? ck.items.length + ' accounts' : 'Anonymous'],
+      ['IP Slots', usage ? (usage.items || []).length + ' slots' : '—'],
+    ];
+    box.innerHTML = rows.map(([k, v]) => `
+      <div class="sf-row"><span>${k}</span><b>${v}</b></div>
+    `).join('');
+  } catch (e) {
+    box.innerHTML = '<span class="muted">—</span>';
+  }
+}
+
+let authMode = (window.location.pathname.endsWith('/register') || window.location.pathname === '/register') ? 'register' : 'login';
+
+function renderLogin(err = '') {
+  document.getElementById('app').innerHTML = `
+    <div class="login-box" style="max-width:380px;margin:80px auto;padding:28px 24px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,0.35);">
+      <div class="brand" style="justify-content:center;margin-bottom:6px;">
+        <span class="spark"></span>
+        <span style="font-weight:600;font-size:18px;">gemini-web2api</span>
+      </div>
+      <p class="muted" style="text-align:center;font-size:13px;margin:0 0 18px;">
+        ${authMode === 'register' ? 'Create a personal workspace' : 'Sign in to your account'}
+      </p>
+
+      <div style="display:flex;gap:6px;margin-bottom:18px;background:var(--bg-card-sub);padding:4px;border-radius:8px;">
+        <button type="button" class="btn ${authMode === 'login' ? '' : 'muted'}" style="flex:1;padding:6px;font-size:12.5px;" onclick="setAuthMode('login')">Sign In</button>
+        <button type="button" class="btn ${authMode === 'register' ? '' : 'muted'}" style="flex:1;padding:6px;font-size:12.5px;" onclick="setAuthMode('register')">Register</button>
+      </div>
+
+      <div class="login-form">
+        ${authMode === 'token' ? `
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">Master Admin Token</label>
+            <input id="tokenInput" type="password" placeholder="Admin Token" autofocus />
+          </div>
+          <button class="btn" style="width:100%;margin-top:6px;" onclick="doAdminTokenLogin()">Sign In with Token</button>
+          <div style="text-align:center;margin-top:14px;">
+            <a href="javascript:void(0)" onclick="setAuthMode('login')" style="font-size:12px;color:var(--accent);">Back to Username / Password</a>
+          </div>
+        ` : authMode === 'register' ? `
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">Username</label>
+            <input id="regUsername" type="text" placeholder="Username (letters, digits, _)" autofocus autocomplete="username" />
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">Password</label>
+            <input id="regPassword" type="password" placeholder="At least 6 characters" autocomplete="new-password" />
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">Confirm Password</label>
+            <input id="regPassword2" type="password" placeholder="Repeat password" autocomplete="new-password" />
+          </div>
+          <button class="btn" style="width:100%;margin-top:6px;" onclick="doRegister()">Create Account</button>
+        ` : `
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">Username</label>
+            <input id="loginUsername" type="text" placeholder="Username or admin" autofocus autocomplete="username" />
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">Password</label>
+            <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" />
+          </div>
+          <button class="btn" style="width:100%;margin-top:6px;" onclick="doUserLogin()">Sign In</button>
+          <div style="text-align:center;margin-top:14px;">
+            <a href="javascript:void(0)" onclick="setAuthMode('token')" style="font-size:12px;color:var(--muted);">Sign in with Admin Token instead</a>
+          </div>
+        `}
+        <div class="err" id="loginErr" style="margin-top:12px;text-align:center;font-size:12.5px;">${err}</div>
+      </div>
+    </div>
+  `;
+
+  const inputs = document.querySelectorAll('.login-box input');
+  inputs.forEach(inp => {
+    inp.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        if (authMode === 'token') doAdminTokenLogin();
+        else if (authMode === 'register') doRegister();
+        else doUserLogin();
+      }
+    };
+  });
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  renderLogin();
+}
+
+async function doUserLogin() {
+  const username = (document.getElementById('loginUsername').value || '').trim();
+  const password = document.getElementById('loginPassword').value || '';
+  if (!username || !password) {
+    document.getElementById('loginErr').textContent = 'Please enter both username and password';
+    return;
+  }
+  try {
+    const r = await fetch('api/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      document.getElementById('loginErr').textContent = err.error || 'Invalid credentials';
+      return;
+    }
+    await checkAuthAndBoot();
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message;
+  }
+}
+
+async function doAdminTokenLogin() {
+  const token = (document.getElementById('tokenInput').value || '').trim();
+  if (!token) {
+    document.getElementById('loginErr').textContent = 'Please enter admin token';
+    return;
+  }
+  try {
+    const r = await fetch('api/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      document.getElementById('loginErr').textContent = err.error || 'Invalid token';
+      return;
+    }
+    await checkAuthAndBoot();
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message;
+  }
+}
+
+async function doRegister() {
+  const username = (document.getElementById('regUsername').value || '').trim();
+  const password = document.getElementById('regPassword').value || '';
+  const password2 = document.getElementById('regPassword2').value || '';
+  if (!username) {
+    document.getElementById('loginErr').textContent = 'Username is required';
+    return;
+  }
+  if (password.length < 6) {
+    document.getElementById('loginErr').textContent = 'Password must be at least 6 characters';
+    return;
+  }
+  if (password !== password2) {
+    document.getElementById('loginErr').textContent = 'Passwords do not match';
+    return;
+  }
+  try {
+    const r = await fetch('api/register', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      document.getElementById('loginErr').textContent = err.error || 'Registration failed';
+      return;
+    }
+    await checkAuthAndBoot();
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message;
+  }
+}
+
+async function checkAuthAndBoot() {
+  try {
+    const meRes = await fetch('api/me', { credentials: 'include' });
+    if (!meRes.ok) {
+      renderLogin();
+      return;
+    }
+    const data = await meRes.json();
+    currentUser = data.user || null;
+    renderShell();
+  } catch (e) {
+    renderLogin();
+  }
+}
+
+// boot
+checkAuthAndBoot();
+</script>
+</body>
+</html>
