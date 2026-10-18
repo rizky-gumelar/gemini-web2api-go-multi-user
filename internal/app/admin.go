@@ -980,3 +980,103 @@ func errorBreakdown(since int64, u *User) []map[string]interface{} {
 	})
 	return out
 }
+
+// handleAdminModelCatalog returns the catalog of all supported Gemini models,
+// their capabilities, requirements (public vs cookie vs paid), and live status for the current user.
+func handleAdminModelCatalog(w http.ResponseWriter, r *http.Request) {
+	u := userFromContext(r.Context())
+	var queryUID int64
+	if u != nil && u.Role != "admin" {
+		queryUID = u.ID
+	}
+	hasCookie := false
+	if queryUID == 0 {
+		_, enabled := accountCount()
+		hasCookie = enabled > 0
+	} else {
+		_, enabled := accountCountForUser(queryUID)
+		hasCookie = enabled > 0
+	}
+
+	type ModelItem struct {
+		ID          string `json:"id"`
+		Name        string `json:"name"`
+		Category    string `json:"category"`
+		Description string `json:"description"`
+		NeedsLogin  bool   `json:"needs_login"`
+		PaidOnly    bool   `json:"paid_only"`
+		Thinking    bool   `json:"thinking"`
+		Status      string `json:"status"` // "ready_public", "ready_cookie", "needs_cookie", "paid_cookie"
+	}
+
+	order := []string{
+		"gemini-3.6-flash",
+		"gemini-3.5-flash-lite",
+		"gemini-3.1-pro",
+		"gemini-3.6-flash-thinking",
+		"gemini-3.1-pro-thinking",
+		"gemini-3.5-flash-lite-thinking",
+		"gemini-3.8-flash",
+		"gemini-3.8-flash-thinking",
+		"gemini-4-argon",
+		"gemini-4-argon-thinking",
+		"gemini-image",
+		"gemini-music",
+		"gemini-video",
+		"gemini-canvas",
+	}
+
+	var items []ModelItem
+	for _, id := range order {
+		cfg, ok := Models[id]
+		if !ok {
+			continue
+		}
+		category := "Chat"
+		if cfg.Thinking {
+			category = "Reasoning"
+		} else if cfg.Tool == toolImage {
+			category = "Image"
+		} else if cfg.Tool == toolMusic {
+			category = "Music"
+		} else if cfg.Tool == toolVideo {
+			category = "Video"
+		} else if cfg.Tool == toolCanvas {
+			category = "Canvas"
+		}
+
+		paidOnly := cfg.HexID == hexFlash38 || cfg.HexID == hexArgon4 || cfg.Tool == toolVideo
+		needsLogin := modelNeedsLogin(cfg)
+
+		status := "ready_public"
+		if paidOnly {
+			if hasCookie {
+				status = "paid_cookie"
+			} else {
+				status = "needs_cookie"
+			}
+		} else if needsLogin {
+			if hasCookie {
+				status = "ready_cookie"
+			} else {
+				status = "needs_cookie"
+			}
+		}
+
+		items = append(items, ModelItem{
+			ID:          id,
+			Name:        id,
+			Category:    category,
+			Description: cfg.Desc,
+			NeedsLogin:  needsLogin,
+			PaidOnly:    paidOnly,
+			Thinking:    cfg.Thinking,
+			Status:      status,
+		})
+	}
+
+	writeJSON(w, 200, map[string]interface{}{
+		"has_cookie": hasCookie,
+		"models":     items,
+	})
+}

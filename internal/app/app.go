@@ -147,6 +147,7 @@ func Run() {
 			mux.HandleFunc(prefix+"/cookies", requireAuth(handleAdminCookies))
 			mux.HandleFunc(prefix+"/cookies/", requireAuth(handleAdminCookieItem))
 			mux.HandleFunc(prefix+"/test", requireAuth(handleAdminTest))
+			mux.HandleFunc(prefix+"/models", requireAuth(handleAdminModelCatalog))
 		}
 		registerAPIs("/admin/api")
 		registerAPIs("/api")

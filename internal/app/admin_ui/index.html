@@ -454,6 +454,7 @@ const pages = {
   dashboard: async () => {
     const stats = await api('api/stats?hours=24');
     const usage = await api('api/usage');
+    const modelsData = await api('api/models').catch(() => ({ models: [], has_cookie: false }));
     return `
       <div class="kpi-row">
         <div class="kpi"><div class="label">24h Requests</div><div class="value">${fmt.num(stats.total_requests)}</div></div>
@@ -538,12 +539,79 @@ const pages = {
           </p>
           <div id="testResult" style="display:none; margin-top:12px;"></div>
         </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <h2>Quick Model Test
+            <span class="controls"><button class="btn" id="btnRunModelTest" onclick="runModelTest()">Send Test</button></span>
+          </h2>
+          <div style="display:flex;gap:10px;margin-bottom:8px;align-items:center;">
+            <select id="selTestModel" style="flex:1;">
+              ${(modelsData.models || []).map(m => `
+                <option value="${m.id}">${m.id} (${m.status === 'ready_public' ? 'Public' : (m.status === 'ready_cookie' ? 'Unlocked' : (m.status === 'paid_cookie' ? 'Paid Cookie' : 'Needs Cookie'))})</option>
+              `).join('')}
+            </select>
+          </div>
+          <textarea id="txtTestPrompt" rows="2" style="width:100%;font-size:12.5px;box-sizing:border-box;" placeholder="Pesan pengujian...">Halo! Model apa kamu dan apakah kamu siap digunakan?</textarea>
+          <div id="modelTestResult" style="display:none;margin-top:10px;"></div>
+        </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+          <div>
+            <h2>Supported Models & Status</h2>
+            <p class="card-desc" style="margin-bottom:0">Daftar semua model Gemini yang didukung dan status ketersediaannya saat ini.</p>
+          </div>
+          <span class="badge ${modelsData.has_cookie ? 'ok' : 'warn'}">
+            ${modelsData.has_cookie ? 'Cookie Active (Pro & Tools Unlocked)' : 'No Cookie (Flash Public Only)'}
+          </span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Model Name (ID)</th>
+                <th>Category</th>
+                <th>Requirements</th>
+                <th>Status</th>
+                <th>Description</th>
+                <th class="nw">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(modelsData.models || []).map(m => {
+                const statusBadge =
+                  m.status === 'ready_public' ? '<span class="badge ok">Ready (Public)</span>'
+                  : m.status === 'ready_cookie' ? '<span class="badge ok">Ready (Cookie Active)</span>'
+                  : m.status === 'paid_cookie' ? '<span class="badge purple">Paid Account Cookie</span>'
+                  : '<span class="badge warn" title="Membutuhkan cookie akun Google aktif">Locked (Needs Cookie)</span>';
+                const reqText =
+                  m.paid_only ? 'Paid Google Account Cookie'
+                  : m.needs_login ? 'Google Account Cookie'
+                  : 'Public (Free, No Cookie)';
+                return `<tr>
+                  <td class="nw">
+                    <span style="font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--text);">${escapeHtml(m.id)}</span>
+                    <button class="btn muted" style="padding:2px 6px;font-size:10.5px;margin-left:6px;" onclick="copyVal('${m.id}', 'Model ID')">Copy</button>
+                  </td>
+                  <td class="nw"><span class="badge ${m.category === 'Reasoning' ? 'blue' : (m.category === 'Image' ? 'purple' : 'muted')}">${m.category}</span></td>
+                  <td class="nw" style="font-size:12px;color:var(--text-2);">${reqText}</td>
+                  <td class="nw">${statusBadge}</td>
+                  <td style="font-size:12px;color:var(--muted);">${escapeHtml(m.description)}</td>
+                  <td class="nw">
+                    <button class="btn muted" style="padding:3px 10px;font-size:11.5px;" onclick="selectTestModel('${m.id}')">Test</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
       </div>
 
       <div class="grid-2">
         <div class="panel">
-          <h2>By Model</h2>
+          <h2>Request Stats by Model (Last ${stats.window_hours || 24}h)</h2>
           <table>
             <colgroup><col style="width:38%"><col style="width:14%"><col style="width:14%"><col style="width:16%"><col style="width:18%"></colgroup>
             <thead><tr><th>Model</th><th class="nw">Requests</th><th class="nw">Success</th><th class="nw">Avg Latency</th><th class="nw">Tokens</th></tr></thead>
@@ -1737,6 +1805,103 @@ async function runTest() {
       </div>`;
   } catch (e) {
     box.innerHTML = `<div class="err">Test request failed: ${e.message}</div>`;
+  }
+}
+
+function selectTestModel(id) {
+  const sel = document.getElementById('selTestModel');
+  if (sel) {
+    sel.value = id;
+    sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const p = document.getElementById('txtTestPrompt');
+    if (p) p.focus();
+    flash('Selected ' + id + ' for testing');
+  }
+}
+
+async function runModelTest() {
+  const mSel = document.getElementById('selTestModel');
+  const pInput = document.getElementById('txtTestPrompt');
+  const btn = document.getElementById('btnRunModelTest');
+  const resBox = document.getElementById('modelTestResult');
+  if (!mSel || !pInput || !resBox) return;
+
+  const model = mSel.value;
+  const prompt = pInput.value.trim() || 'Halo! Model apa kamu?';
+
+  btn.disabled = true;
+  btn.textContent = 'Testing…';
+  resBox.style.display = 'block';
+  resBox.innerHTML = '<div class="empty">Sending request to upstream Gemini via ' + escapeHtml(model) + '…</div>';
+
+  const t0 = Date.now();
+  try {
+    const res = await fetch('../v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(currentUser && currentUser.api_key ? { 'Authorization': `Bearer ${currentUser.api_key}` } : {})
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    const took = Date.now() - t0;
+    const data = await res.json();
+
+    if (!res.ok) {
+      resBox.innerHTML = `
+        <div style="background:#fce8e6;color:#a52714;padding:12px 14px;border-radius:10px;font-size:13px;line-height:1.5;">
+          <b>Test Failed (HTTP ${res.status}):</b> ${escapeHtml(data.error && data.error.message ? data.error.message : (data.error || 'Unknown error'))}
+          <div style="margin-top:6px;font-size:12px;opacity:.9;">Catatan: Model Pro/Thinking/Image membutuhkan cookie aktif di Cookie Pool.</div>
+        </div>`;
+      return;
+    }
+
+    const choice = data.choices && data.choices[0];
+    const msg = choice && choice.message ? choice.message : {};
+    const content = msg.content || '';
+    const reasoning = msg.reasoning_content || '';
+    const usage = data.usage || {};
+
+    let html = `
+      <div style="background:var(--surface-hi);border:1px solid var(--outline-soft);border-radius:12px;padding:14px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;">
+          <span class="badge ok">Success (${took} ms)</span>
+          <span class="muted">Tokens: ${usage.total_tokens || 0} (Prompt: ${usage.prompt_tokens || 0}, Output: ${usage.completion_tokens || 0})</span>
+        </div>`;
+
+    if (reasoning) {
+      html += `
+        <details style="margin-bottom:10px;background:var(--card);border:1px solid var(--outline);border-radius:8px;padding:8px 12px;font-size:12.5px;">
+          <summary style="cursor:pointer;color:var(--g-blue);font-weight:500;">🧠 Reasoning / Thinking Chain (${reasoning.length} chars)</summary>
+          <div style="margin-top:8px;white-space:pre-wrap;font-family:var(--mono);color:var(--text-2);max-height:200px;overflow-y:auto;">${escapeHtml(reasoning)}</div>
+        </details>`;
+    }
+
+    if (content.startsWith('data:image/')) {
+      html += `
+        <div style="margin-top:8px;">
+          <img src="${content}" style="max-width:100%;max-height:300px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);" alt="Generated Image"/>
+        </div>`;
+    } else {
+      html += `
+        <div style="font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;background:var(--card);border:1px solid var(--outline);border-radius:8px;padding:10px 14px;">${escapeHtml(content)}</div>`;
+    }
+
+    html += `</div>`;
+    resBox.innerHTML = html;
+  } catch (err) {
+    resBox.innerHTML = `
+      <div style="background:#fce8e6;color:#a52714;padding:12px 14px;border-radius:10px;font-size:13px;">
+        <b>Network Error:</b> ${escapeHtml(err.message)}
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Test';
   }
 }
 
