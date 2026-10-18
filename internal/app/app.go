@@ -141,6 +141,7 @@ func Run() {
 			mux.HandleFunc(prefix+"/proxies", requireAuth(handleAdminProxies))
 			mux.HandleFunc(prefix+"/proxies/", requireAuth(handleAdminProxyItem))
 			mux.HandleFunc(prefix+"/apikey", requireAuth(handleAdminAPIKey))
+			mux.HandleFunc(prefix+"/apikey/", requireAuth(handleAdminAPIKey))
 			mux.HandleFunc(prefix+"/usage", requireAuth(handleAdminUsage))
 			mux.HandleFunc(prefix+"/config", requireAuth(handleAdminConfig))
 			mux.HandleFunc(prefix+"/cookies", requireAuth(handleAdminCookies))

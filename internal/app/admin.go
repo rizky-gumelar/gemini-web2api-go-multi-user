@@ -511,8 +511,9 @@ func handleAdminProxies(w http.ResponseWriter, r *http.Request) {
 func handleAdminProxyItem(w http.ResponseWriter, r *http.Request) {
 	// /admin/api/proxies/123/(toggle|reset|update|delete)
 	rest := strings.TrimPrefix(r.URL.Path, "/admin/api/proxies/")
+	rest = strings.TrimPrefix(rest, "/api/proxies/")
 	parts := strings.Split(rest, "/")
-	if len(parts) < 1 {
+	if len(parts) < 1 || parts[0] == "" {
 		writeJSON(w, 404, map[string]string{"error": "missing id"})
 		return
 	}
@@ -648,7 +649,7 @@ func handleAdminAPIKey(w http.ResponseWriter, r *http.Request) {
 		}
 		u.APIKey = k
 		writeJSON(w, 200, map[string]interface{}{"key": k, "locked": (u.Role == "admin" && apiKeyLocked)})
-	case "PATCH":
+	case "PATCH", "PUT":
 		var p struct {
 			Key string `json:"key"`
 		}
@@ -735,6 +736,7 @@ func handleAdminUserItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rest := strings.TrimPrefix(r.URL.Path, "/admin/api/users/")
+	rest = strings.TrimPrefix(rest, "/api/users/")
 	parts := strings.Split(rest, "/")
 	if len(parts) == 0 || parts[0] == "" {
 		writeJSON(w, 404, map[string]string{"error": "not found"})

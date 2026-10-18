@@ -122,6 +122,7 @@ func handleAdminCookies(w http.ResponseWriter, r *http.Request) {
 //	PATCH           改 label / note / status
 func handleAdminCookieItem(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/admin/api/cookies/")
+	rest = strings.TrimPrefix(rest, "/api/cookies/")
 	parts := strings.Split(rest, "/")
 	if len(parts) < 1 || parts[0] == "" {
 		writeJSON(w, 404, map[string]string{"error": "missing id"})
@@ -156,7 +157,7 @@ func handleAdminCookieItem(w http.ResponseWriter, r *http.Request) {
 		}
 		logf("[cookies] 删除账号 #%d", id)
 		writeJSON(w, 200, map[string]bool{"ok": true})
-	case http.MethodPost:
+	case http.MethodGet, http.MethodPost:
 		if action == "rotate" {
 			iv, names, err := rotateAccount(*acct)
 			if err != nil {
@@ -175,20 +176,20 @@ func handleAdminCookieItem(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, 200, checkAccountCookie(*acct))
 			return
 		}
-		if action != "toggle" {
-			writeJSON(w, 400, map[string]string{"error": "unknown action"})
+		if r.Method == http.MethodPost && action == "toggle" {
+			next := "enabled"
+			if acct.Status == "enabled" {
+				next = "disabled"
+			}
+			if err := accountSetStatus(id, next); err != nil {
+				writeJSON(w, 500, map[string]string{"error": err.Error()})
+				return
+			}
+			writeJSON(w, 200, map[string]interface{}{"status": next})
 			return
 		}
-		next := "enabled"
-		if acct.Status == "enabled" {
-			next = "disabled"
-		}
-		if err := accountSetStatus(id, next); err != nil {
-			writeJSON(w, 500, map[string]string{"error": err.Error()})
-			return
-		}
-		writeJSON(w, 200, map[string]interface{}{"status": next})
-	case http.MethodPatch:
+		writeJSON(w, 400, map[string]string{"error": "unknown action"})
+	case http.MethodPatch, http.MethodPut:
 		var p struct {
 			Label  *string `json:"label"`
 			Note   *string `json:"note"`

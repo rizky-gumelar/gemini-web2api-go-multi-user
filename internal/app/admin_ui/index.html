@@ -1412,7 +1412,7 @@ async function editCookieAcct(id, label, note) {
 async function checkCookieAcct(id, btn) {
   btn.textContent = 'Checking…'; btn.disabled = true;
   try {
-    const r = await fetch(`api/cookies/${id}/check`, { credentials: 'include' });
+    const r = await fetch(`api/cookies/${id}/check`, { method: 'POST', credentials: 'include' });
     const d = await r.json();
     if (!r.ok) { flash('Check failed: ' + (d.error || r.status)); return; }
     const via = d.proxy_name ? `, via ${d.proxy_name}` : '';
