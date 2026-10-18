@@ -124,7 +124,7 @@ func Run() {
 	// ─── Web UI + API (Admin & Users) ───────────────────────────────────
 	if cfg.AdminEnabled {
 		// Web portal entry points
-		for _, p := range []string{"/admin", "/admin/", "/login", "/register", "/dashboard", "/console", "/chart.umd.min.js"} {
+		for _, p := range []string{"/admin", "/admin/", "/login", "/register", "/dashboard", "/console", "/chart.umd.min.js", "/gemini-cookie-sync.zip", "/admin/gemini-cookie-sync.zip"} {
 			mux.HandleFunc(p, handleAdminUI)
 		}
 

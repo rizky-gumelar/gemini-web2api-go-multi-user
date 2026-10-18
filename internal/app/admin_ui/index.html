@@ -362,6 +362,48 @@
   .ck-extra { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
   .modal.wide { width: min(620px, 94vw); }
 
+  /* Tutorial styling */
+  .tut-box {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+  }
+  .tut-config-card {
+    background: var(--surface-hi); border-radius: 14px; padding: 16px 18px;
+    border: 1px solid var(--outline-soft);
+  }
+  .tut-config-card .title { font-size: 11.5px; text-transform: uppercase; font-weight: 600; color: var(--muted); letter-spacing: .04em; margin-bottom: 6px; }
+  .tut-config-card .val-box {
+    display: flex; gap: 8px; align-items: center; background: var(--card);
+    border: 1px solid var(--outline); border-radius: 10px; padding: 6px 10px;
+  }
+  .tut-config-card .val-text {
+    flex: 1; font-family: var(--mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text);
+  }
+  .tut-step {
+    display: flex; gap: 16px; margin-bottom: 24px; position: relative;
+  }
+  .tut-step:not(:last-child)::after {
+    content: ''; position: absolute; left: 16px; top: 40px; bottom: -16px;
+    width: 2px; background: var(--outline-soft);
+  }
+  .tut-num {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--nav-on); color: var(--nav-on-fg);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; flex-shrink: 0; z-index: 1;
+    box-shadow: 0 0 0 4px var(--card);
+  }
+  .tut-content { flex: 1; min-width: 0; }
+  .tut-content h3 { font-size: 15px; font-weight: 600; margin: 4px 0 8px; color: var(--text); }
+  .tut-content p, .tut-content li { font-size: 13.5px; color: var(--text-2); line-height: 1.6; }
+  .tut-content ul, .tut-content ol { margin: 6px 0 10px; padding-left: 20px; }
+  .tut-callout {
+    background: var(--surface-hi); border-left: 4px solid var(--g-blue);
+    border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; line-height: 1.6;
+  }
+  .tut-callout.warn { border-left-color: var(--warn); background: #FFF8E1; color: #795548; }
+  .tut-callout.green { border-left-color: var(--ok); background: #E8F5E9; color: #1B5E20; }
+
   @media (max-width: 1100px) { .grid-main { grid-template-columns: 1fr; } }
   @media (max-width: 900px) {
     #app { flex-direction: column; }
@@ -655,6 +697,7 @@ const pages = {
           <span class="controls">
             ${deadN > 0 ? '<span class="badge fail" style="margin-right:8px" title="These accounts are failing authentication, likely expired cookies. Exporting via Firefox is recommended">' + deadN + ' Likely Expired</span>' : ''}
             <span class="badge ${data.enabled > 0 ? 'ok' : 'muted'}" style="margin-right:8px">${data.enabled || 0} active / ${data.total || 0} total</span>
+            <button class="btn muted" style="margin-right:8px" onclick="switchPage('tutorial')">Tutorial Extension</button>
             <button class="btn" onclick="addCookieAcct()">+ Import Cookie</button>
           </span>
         </h2>
@@ -666,7 +709,8 @@ const pages = {
             Media generation has quotas per account (e.g. 10/day for images), so adding accounts scales media quota linearly.<br><br>
             Credentials are <b>never sent back to the browser</b> after saving. The table displays only masked summaries (cookie count, key headers, SAPISID suffix, failure count).
             Accounts missing <code>__Secure-1PSIDTS</code> are highlighted in yellow; initial keep-alive will attempt renewal from Google.
-            If renewal repeatedly fails, re-export using <b>Firefox</b> (recent Chrome versions enforce device-bound sessions that cannot be renewed externally).
+            If renewal repeatedly fails, re-export using <b>Firefox</b> (recent Chrome versions enforce device-bound sessions that cannot be renewed externally).<br><br>
+            💡 <b>Baru pertama kali?</b> Buka <a href="javascript:void(0)" onclick="switchPage('tutorial')" style="color:var(--g-blue);font-weight:500;">Tutorial Pasang Extension & Import Cookies</a> untuk panduan step-by-step dan download ekstensi.
           </div>
         </details>
         <table>
@@ -716,6 +760,181 @@ const pages = {
             }).join('') || '<tr><td colspan="9" class="empty">Cookie pool is empty. Click "+ Import Cookie" to add an account.</td></tr>'}
           </tbody>
         </table>
+      </div>
+    `;
+  },
+
+  tutorial: async () => {
+    const origin = window.location.origin;
+    const apiKey = (currentUser && currentUser.api_key) || '';
+    return `
+      <div class="panel" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:18px;">
+          <div>
+            <h2>Tutorial Pasang Extension & Import Cookies</h2>
+            <p class="card-desc">Hubungkan akun Google Gemini Anda ke gemini-web2api untuk membuka model Pro, Thinking, Image/Media generation, dan quota per akun.</p>
+          </div>
+          <a href="gemini-cookie-sync.zip" class="btn" style="padding:9px 18px;gap:8px;" download>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+            </svg>
+            Download Extension (.zip)
+          </a>
+        </div>
+
+        <div class="tut-box">
+          <div class="tut-config-card">
+            <div class="title">Panel Base URL</div>
+            <div class="val-box">
+              <span class="val-text" id="tutBaseUrl">${origin}</span>
+              <button class="btn muted" style="padding:4px 10px;font-size:12px;" onclick="copyVal('${origin}', 'Panel Base URL')">Copy</button>
+            </div>
+            <div class="hint">Gunakan URL ini pada kolom "Panel base URL" di popup ekstensi.</div>
+          </div>
+          <div class="tut-config-card">
+            <div class="title">Your Personal API Key</div>
+            <div class="val-box">
+              <span class="val-text" id="tutApiKey">${apiKey ? escapeHtml(apiKey) : '(Belum ada API Key)'}</span>
+              ${apiKey ? `<button class="btn muted" style="padding:4px 10px;font-size:12px;" onclick="copyVal('${apiKey}', 'API Key')">Copy</button>` : ''}
+            </div>
+            <div class="hint">Gunakan kunci ini pada kolom "Your API key" di popup ekstensi.</div>
+          </div>
+        </div>
+
+        <div class="segbar" style="margin-bottom:24px;">
+          <button class="tut-tab-btn on" data-tab="ext" onclick="switchTutTab('ext')">🚀 Metode 1: Chrome Extension (Rekomendasi)</button>
+          <button class="tut-tab-btn" data-tab="manual" onclick="switchTutTab('manual')">📋 Metode 2: Manual Import (Firefox / Browser)</button>
+          <button class="tut-tab-btn" data-tab="faq" onclick="switchTutTab('faq')">❓ FAQ & Tips</button>
+        </div>
+
+        <div id="tut-ext" class="tut-tab-content" style="display:block;">
+          <div class="tut-step">
+            <div class="tut-num">1</div>
+            <div class="tut-content">
+              <h3>Download & Ekstrak Extension</h3>
+              <p>Klik tombol <b>Download Extension (.zip)</b> di pojok kanan atas. Buka file zip yang terunduh lalu ekstrak folder <code>gemini-cookie-sync</code> ke lokasi yang mudah diakses di komputer Anda (misalnya di folder Dokumen atau Downloads).</p>
+            </div>
+          </div>
+
+          <div class="tut-step">
+            <div class="tut-num">2</div>
+            <div class="tut-content">
+              <h3>Muat Ekstensi di Browser (Chrome / Edge / Brave / Opera)</h3>
+              <ol>
+                <li>Buka browser berbasis Chromium (Google Chrome, Microsoft Edge, Brave, dll).</li>
+                <li>Ketik <code>chrome://extensions</code> di address bar (untuk Microsoft Edge: <code>edge://extensions</code>).</li>
+                <li>Aktifkan saklar / toggle <b>Developer mode</b> (Mode pengembang) di pojok kanan atas.</li>
+                <li>Klik tombol <b>Load unpacked</b> (Muat yang belum dibongkar) di pojok kiri atas.</li>
+                <li>Pilih folder hasil ekstrak <code>gemini-cookie-sync</code>.</li>
+                <li>Ekstensi <b>Gemini Cookie Sync</b> sekarang telah aktif! Sematkan (pin) ikonnya di toolbar browser agar mudah diakses.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="tut-step">
+            <div class="tut-num">3</div>
+            <div class="tut-content">
+              <h3>Konfigurasi Pengaturan di Ekstensi</h3>
+              <p>Klik ikon <b>Gemini Cookie Sync</b> di toolbar browser untuk membuka menu popup, lalu lengkapi kolom berikut:</p>
+              <ul>
+                <li><b>Panel base URL:</b> Masukkan URL panel ini (klik tombol <i>Copy</i> pada kotak di atas).</li>
+                <li><b>Your API key:</b> Masukkan API key akun Anda (klik tombol <i>Copy</i> pada kotak di atas).</li>
+                <li><b>Account label (opsional):</b> Beri nama pengenal akun, misalnya <code>akun-utama</code> atau alamat email Anda.</li>
+              </ul>
+              <p>Klik tombol <b>Save settings</b>.</p>
+            </div>
+          </div>
+
+          <div class="tut-step">
+            <div class="tut-num">4</div>
+            <div class="tut-content">
+              <h3>Kirim Cookies ke Panel (Sinkronisasi 1-Klik)</h3>
+              <p>Pastikan Anda telah login ke akun Google di <a href="https://gemini.google.com" target="_blank" style="color:var(--g-blue);font-weight:500;">gemini.google.com</a> pada jendela browser yang sama.</p>
+              <div class="tut-callout green">
+                <b>Deteksi Otomatis:</b> Saat Anda membuka halaman panel web ini, ekstensi akan otomatis mendeteksi sesi login Gemini Anda dan memunculkan notifikasi banner di pojok kanan bawah:
+                <br><i>"Gemini account detected — Send them to this panel?"</i> &rarr; Cukup klik <b>Send cookies</b>!
+              </div>
+              <p><b>Cara Manual:</b> Anda juga dapat membuka tab <a href="https://gemini.google.com" target="_blank" style="color:var(--g-blue);">gemini.google.com</a>, lalu klik ikon ekstensi di toolbar dan tekan tombol <b>Send cookies now</b>.</p>
+            </div>
+          </div>
+
+          <div class="tut-step">
+            <div class="tut-num">5</div>
+            <div class="tut-content">
+              <h3>Cek Validitas Akun di Cookie Pool</h3>
+              <p>Buka menu <a href="javascript:void(0)" onclick="switchPage('cookies')" style="color:var(--g-blue);font-weight:500;">Cookie Pool</a>. Akun Anda yang baru diimpor akan langsung muncul pada daftar.</p>
+              <p>Klik tombol <b>Check</b> pada baris akun tersebut. Jika berhasil, sistem akan mengonfirmasi status <code>Session is valid</code>. Server juga secara otomatis melakukan rotasi dan perpanjangan token (keep-alive) setiap 10 menit di latar belakang.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="tut-manual" class="tut-tab-content" style="display:none;">
+          <div class="tut-callout">
+            <b>Rekomendasi Firefox:</b> Google Chrome versi terbaru menerapkan sistem <i>Device-Bound Session Credentials (DBSC)</i> yang mengikat sesi login ke hardware browser. Jika menggunakan Firefox, cookie yang diekspor terbebas dari DBSC dan memiliki masa aktif yang jauh lebih panjang serta stabil tanpa perlu sering login ulang.
+          </div>
+
+          <div class="tut-step">
+            <div class="tut-num">1</div>
+            <div class="tut-content">
+              <h3>Salin Cookie dari gemini.google.com</h3>
+              <ol>
+                <li>Buka dan login ke <a href="https://gemini.google.com" target="_blank" style="color:var(--g-blue);">gemini.google.com</a> di browser Firefox atau Chrome.</li>
+                <li>Buka DevTools (tekan <code>F12</code>) &rarr; Masuk ke tab <b>Storage</b> (Firefox) atau <b>Application</b> (Chrome) &rarr; <b>Cookies</b> &rarr; <code>https://gemini.google.com</code>.</li>
+                <li>Atau gunakan ekstensi pembantu seperti <b>Cookie-Editor</b>, lalu klik tombol <b>Export</b> &rarr; <b>Header String</b>.</li>
+                <li>Pastikan cookie string menyertakan item kunci: <code>SAPISID</code>, <code>__Secure-1PSID</code>, <code>__Secure-1PSIDTS</code>, <code>SID</code>, <code>HSID</code>, <code>SSID</code>, <code>APISID</code>.</li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="tut-step">
+            <div class="tut-num">2</div>
+            <div class="tut-content">
+              <h3>Import ke Panel Web</h3>
+              <ol>
+                <li>Buka menu <a href="javascript:void(0)" onclick="switchPage('cookies')" style="color:var(--g-blue);font-weight:500;">Cookie Pool</a> di panel ini.</li>
+                <li>Klik tombol <b>+ Import Cookie</b> di pojok kanan atas.</li>
+                <li>Isi label akun (misal: email atau nama akun) dan tempel (paste) seluruh string cookie ke kolom input Cookie.</li>
+                <li>Klik <b>Save Account</b>.</li>
+                <li>Klik tombol <b>Check</b> pada akun tersebut untuk memastikan statusnya <code>Session is valid</code>.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <div id="tut-faq" class="tut-tab-content" style="display:none;">
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="tut-config-card">
+              <h3 style="margin:0 0 6px;font-size:14px;color:var(--text);">Apa manfaat mengimpor Cookie?</h3>
+              <p style="margin:0;font-size:13px;color:var(--text-2);line-height:1.6;">
+                Tanpa cookie, proxy hanya dapat melayani model publik Gemini anonim (flash-lite). Dengan menghubungkan cookie Google account, Anda membuka akses penuh ke <b>gemini-3.1-pro</b>, mode <b>thinking</b>, pembuatan gambar/musik/media, serta kuota akun individual.
+              </p>
+            </div>
+
+            <div class="tut-config-card">
+              <h3 style="margin:0 0 6px;font-size:14px;color:var(--text);">Apa arti status akun di Cookie Pool?</h3>
+              <ul style="margin:6px 0 0;padding-left:20px;font-size:13px;color:var(--text-2);line-height:1.6;">
+                <li><span class="badge ok">Healthy</span> : Akun aktif, login terverifikasi, dan siap menerima request.</li>
+                <li><span class="badge warn">Untested</span> : Akun baru diimpor dan belum dites. Klik tombol <b>Check</b> untuk menguji.</li>
+                <li><span class="badge fail">Likely Expired</span> : Sesi akun kadaluarsa atau logout dari Google. Buka kembali gemini.google.com di browser dan kirim ulang cookies via extension.</li>
+                <li><span class="badge muted">Disabled</span> : Akun dinonaktifkan secara manual oleh pengguna/admin.</li>
+              </ul>
+            </div>
+
+            <div class="tut-config-card">
+              <h3 style="margin:0 0 6px;font-size:14px;color:var(--text);">Apakah cookie saya aman?</h3>
+              <p style="margin:0;font-size:13px;color:var(--text-2);line-height:1.6;">
+                Sangat aman. Cookie Anda hanya disimpan di database server SQLite lokal milik Anda sendiri dan hanya diteruskan ke endpoint resmi Google (<code>gemini.google.com</code>). Cookie lengkap <b>tidak pernah dikirimkan kembali ke browser</b> mana pun. Di tampilan tabel panel hanya ditampilkan masked view (4 digit belakang SAPISID dan jumlah cookie).
+              </p>
+            </div>
+
+            <div class="tut-config-card">
+              <h3 style="margin:0 0 6px;font-size:14px;color:var(--text);">Bagaimana cara kerja Keep-Alive & Rotasi Akun?</h3>
+              <p style="margin:0;font-size:13px;color:var(--text-2);line-height:1.6;">
+                Server menjalankan keep-alive otomatis setiap 10 menit untuk memperbarui token <code>__Secure-1PSIDTS</code> dari Google. Jika Anda memasukkan lebih dari 1 akun Google, proxy akan merotasi akun-akun tersebut menggunakan metode <i>Least-Recently-Used</i> (LRU) sehingga beban request dan kuota terdistribusi merata.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   },
@@ -1541,6 +1760,27 @@ async function copyKey() {
   }
 }
 
+async function copyVal(val, label) {
+  if (!val) return;
+  try {
+    await navigator.clipboard.writeText(val);
+    flash((label || 'Text') + ' copied to clipboard');
+  } catch (e) {
+    const el = document.createElement('textarea');
+    el.value = val;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    flash((label || 'Text') + ' copied');
+  }
+}
+
+function switchTutTab(tab) {
+  document.querySelectorAll('.tut-tab-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+  document.querySelectorAll('.tut-tab-content').forEach(c => c.style.display = (c.id === 'tut-' + tab ? 'block' : 'none'));
+}
+
 async function rotateKey() {
   const ok = await modalConfirm({
     title: 'Generate New Key',
@@ -1808,6 +2048,7 @@ const ICONS = {
   proxies: '<path d="M12 2a2.5 2.5 0 011 4.79V9h4a2 2 0 012 2v1.21a2.5 2.5 0 11-2 0V11h-4v1.21a2.5 2.5 0 11-2 0V11H7v1.21a2.5 2.5 0 11-2 0V11a2 2 0 012-2h4V6.79A2.5 2.5 0 0112 2z"/>',
   settings: '<path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>',
   cookies: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 3a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM8 13a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm6 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>',
+  tutorial: '<path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5a2.5 2.5 0 00-5 0V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7s2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5a2.5 2.5 0 000-5z"/>',
   users: '<path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>',
   menu: '<path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>',
   logout: '<path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4a2 2 0 00-2 2v14a2 2 0 002 2h8v-2H4V5z"/>',
@@ -1820,6 +2061,7 @@ function getNav() {
       ['requests', 'Requests'],
       ['proxies', 'Proxy Pool'],
       ['cookies', 'Cookie Pool'],
+      ['tutorial', 'Tutorial Extension'],
       ['users', 'Users'],
       ['settings', 'Settings'],
     ];
@@ -1828,12 +2070,13 @@ function getNav() {
     ['dashboard', 'Overview'],
     ['requests', 'My Requests'],
     ['cookies', 'My Cookies'],
+    ['tutorial', 'Tutorial Extension'],
     ['settings', 'Settings'],
   ];
 }
 
 const PAGE_TITLES = {
-  dashboard: 'Overview', requests: 'Requests', proxies: 'Proxy Pool', cookies: 'Cookie Pool', users: 'User Management', settings: 'Settings',
+  dashboard: 'Overview', requests: 'Requests', proxies: 'Proxy Pool', cookies: 'Cookie Pool', tutorial: 'Tutorial Extension & Import Cookies', users: 'User Management', settings: 'Settings',
 };
 
 function toggleSidebar() {

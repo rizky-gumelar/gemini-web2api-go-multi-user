@@ -45,6 +45,9 @@ func handleAdminUI(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 	case len(path) > 4 && path[len(path)-4:] == ".css":
 		w.Header().Set("Content-Type", "text/css")
+	case strings.HasSuffix(path, ".zip"):
+		w.Header().Set("Content-Type", "application/zip")
+		w.Header().Set("Content-Disposition", "attachment; filename=\"gemini-cookie-sync.zip\"")
 	default:
 		w.Header().Set("Content-Type", "application/octet-stream")
 	}
